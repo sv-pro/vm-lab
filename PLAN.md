@@ -15,19 +15,30 @@ Build infrastructure for generating Ubuntu 24.04 qcow2 images for 5 specialized 
 - [x] ~~Generate/obtain SHA256 checksum for the ISO~~
 - [x] ~~Create base configuration with ISO details~~
 
-## Phase 2: Core Packer Template
-### Task 2.1: Main Template Creation
-- [ ] Create `vm-images/packer/ubuntu-custom.pkr.hcl` with:
-  - Packer plugin requirements (QEMU >= 1.0.0)
-  - Variable declarations (iso_url, iso_checksum, ssh credentials, disk_size, image_name, extra_packages, provision_inline)
-  - QEMU source configuration with proper boot commands
-  - Build block with shell provisioner
-  - Post-processor for file renaming
+## Phase 2: Core Packer Template ✅
+### Task 2.1: Main Template Creation ✅
+- [x] ~~Create `vm-images/packer/ubuntu-custom.pkr.hcl` with:~~
+  - ~~Packer plugin requirements (QEMU >= 1.0.0)~~
+  - ~~Variable declarations (iso_url, iso_checksum, ssh credentials, disk_size, image_name, extra_packages, provision_inline)~~
+  - ~~QEMU source configuration with proper boot commands~~
+  - ~~Build block with shell provisioner~~
+  - ~~Post-processor for file renaming~~
+- [x] ~~Install Packer binary (v1.14.1)~~
+- [x] ~~Create autoinstall HTTP configuration files~~
 
-### Task 2.2: Base Configuration Testing
-- [ ] Create minimal `values-base.hcl` for testing
-- [ ] Validate Packer template syntax
-- [ ] Test base image build process
+### Task 2.2: Base Configuration Testing 🔄
+- [x] ~~Create minimal `values-base.hcl` for testing~~
+- [x] ~~Validate Packer template syntax~~
+- [x] ~~Test base image build process~~ (failed: SSH timeout after 25min)
+- [x] ~~Fix autoinstall configuration issues~~
+  - Fixed network config to use wildcard matching (`e*`)
+  - Simplified storage layout (direct vs LVM)
+  - Fixed boot commands and password hash
+- [x] ~~Retry build with corrected configuration~~ (in progress: 7min waiting for SSH)
+  - VM actively running with 28% CPU usage
+  - Network and boot configuration working correctly
+  - Build process much more stable than first attempt
+- [ ] Complete SSH connection and provisioning (ongoing)
 - [ ] Verify output qcow2 file generation
 
 ## Phase 3: Role-Specific Configurations

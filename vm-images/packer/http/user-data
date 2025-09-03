@@ -1,0 +1,30 @@
+#cloud-config
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  network:
+    network:
+      version: 2
+      ethernets:
+        match:
+          name: "e*"
+        dhcp4: yes
+  storage:
+    layout:
+      name: direct
+  identity:
+    hostname: ubuntu
+    username: ubuntu
+    password: '$6$rounds=4096$saltsalt$YQiQMediS7v5766ByRCagAGHAmkH.jMc3qbGYgs3HMhKMyga/Gi1eNbEKWEiLliXTSz8ufJjhsL1hBiJoZMIa/'
+  ssh:
+    install-server: yes
+    allow-pw: yes
+  packages:
+    - openssh-server
+    - cloud-init
+    - qemu-guest-agent
+  late-commands:
+    - echo 'ubuntu:ubuntu' | chpasswd
+    - systemctl enable ssh

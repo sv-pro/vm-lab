@@ -1,0 +1,28 @@
+#cloud-config
+users:
+  - name: ubuntu
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+# Enable SSH
+ssh_pwauth: false
+disable_root: true
+
+# Package updates
+package_update: true
+package_upgrade: false
+
+# Install basic packages
+packages:
+  - curl
+  - wget
+  - vim
+  - htop
+
+# Set hostname
+hostname: ubuntu
+
+# Final message
+final_message: "Cloud-init setup complete. System ready."

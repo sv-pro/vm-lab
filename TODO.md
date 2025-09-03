@@ -148,3 +148,6 @@ packer build -var-file=packer/values-docker.hcl packer/ubuntu-custom.pkr.hcl
 packer build -var-file=packer/values-k8s.hcl packer/ubuntu-custom.pkr.hcl
 packer build -var-file=packer/values-kata.hcl packer/ubuntu-custom.pkr.hcl
 packer build -var-file=packer/values-observer.hcl packer/ubuntu-custom.pkr.hcl
+
+
+

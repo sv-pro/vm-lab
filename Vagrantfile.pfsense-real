@@ -1,0 +1,67 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# Real pfSense VM using VirtualBox
+
+Vagrant.configure("2") do |config|
+  config.vm.define "pfsense-real" do |pfsense|
+    # Use community pfSense box
+    pfsense.vm.box = "ksklareski/pfsense-ce"
+    pfsense.vm.hostname = "pfsense-firewall"
+    
+    # Disable default shared folder
+    pfsense.vm.synced_folder ".", "/vagrant", disabled: true
+    
+    # Use VirtualBox provider
+    pfsense.vm.provider "virtualbox" do |vb|
+      vb.name = "pfSense-Real-Firewall"
+      vb.memory = 2048
+      vb.cpus = 2
+      vb.gui = false
+      
+      # pfSense specific settings
+      vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
+      vb.customize ["modifyvm", :id, "--nictype2", "virtio"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+      vb.customize ["modifyvm", :id, "--usbehci", "off"]
+    end
+    
+    # Network configuration
+    # WAN interface (NAT - default)
+    pfsense.vm.network "private_network", 
+                       type: "dhcp", 
+                       virtualbox__intnet: "pfsense-wan"
+    
+    # LAN interface for other VMs to connect
+    pfsense.vm.network "private_network", 
+                       ip: "192.168.100.1",
+                       virtualbox__intnet: "pfsense-lan",
+                       auto_config: false
+    
+    # Management interface (for web GUI access)
+    pfsense.vm.network "private_network", 
+                       ip: "192.168.56.10"
+    
+    # Port forwarding for web interface
+    pfsense.vm.network "forwarded_port", 
+                       guest: 443, host: 8443, 
+                       id: "pfsense-https"
+    pfsense.vm.network "forwarded_port", 
+                       guest: 80, host: 8080, 
+                       id: "pfsense-http"
+                       
+    # SSH access (if enabled)
+    pfsense.vm.network "forwarded_port", 
+                       guest: 22, host: 2222, 
+                       id: "ssh", auto_correct: true
+    
+    # Note: pfSense doesn't support typical Vagrant provisioning
+    # Configuration must be done through web interface or config files
+    pfsense.vm.provision "shell", run: "never", inline: <<-SHELL
+      echo "pfSense VM started successfully!"
+      echo "Web Interface: https://localhost:8443 or http://localhost:8080"
+      echo "Default credentials: admin / pfsense"
+      echo "Management IP: 192.168.56.10"
+    SHELL
+  end
+end

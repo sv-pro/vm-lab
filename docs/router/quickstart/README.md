@@ -190,7 +190,7 @@ ip addr show <interface>
 
 - **SSH Users:** vagrant, ubuntu, dev
 - **Passwords:** ubuntu/ubuntu, dev/dev123
-- **SSH Key:** `packer/cloud-init/id_rsa`
+- **SSH Key:** `~/.ssh/id_rsa` (or Vagrant insecure key)
 - **VM IP:** Assigned by libvirt DHCP (192.168.121.x)
 
 ---

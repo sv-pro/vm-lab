@@ -1,13 +1,6 @@
-# VM Images - Build Artifacts
-vm-images/output/*.qcow2
-vm-images/output/*/
-vm-images/packer/packer_cache/
-vm-images/packer/*.log
+# VM Build Artifacts
 output/*.qcow2
 output/*/
-
-# Packer temporary files
-packer_cache/
 *.log
 crash.log
 

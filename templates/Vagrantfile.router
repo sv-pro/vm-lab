@@ -1,0 +1,146 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# Template for Virtual Router VMs with custom names
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "alvistack/ubuntu-24.04"
+  config.vm.hostname = "VM_NAME_PLACEHOLDER"
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  
+  # Configure libvirt provider with router-specific settings
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.driver = "kvm"
+    libvirt.memory = 1024
+    libvirt.cpus = 1
+    libvirt.graphics_type = "none"
+    libvirt.management_network_name = "vagrant-libvirt"
+    libvirt.management_network_address = "192.168.121.0/24"
+    
+    # Enable nested virtualization for advanced routing features
+    libvirt.nested = true
+    libvirt.cpu_mode = "host-passthrough"
+  end
+
+  # SSH key configuration
+  config.ssh.insert_key = false
+  config.ssh.private_key_path = ["../../packer/cloud-init/id_rsa", "~/.vagrant.d/insecure_private_key"]
+  config.vm.provision "file", source: "../../packer/cloud-init/id_rsa.pub", destination: "/tmp/vagrant-pubkey"
+  config.vm.provision "shell", inline: <<-SHELL
+    mkdir -p /home/vagrant/.ssh
+    cat /tmp/vagrant-pubkey >> /home/vagrant/.ssh/authorized_keys
+    chown -R vagrant:vagrant /home/vagrant/.ssh
+    chmod 700 /home/vagrant/.ssh
+    chmod 600 /home/vagrant/.ssh/authorized_keys
+    
+    # Also add to ubuntu user
+    mkdir -p /home/ubuntu/.ssh
+    cat /tmp/vagrant-pubkey >> /home/ubuntu/.ssh/authorized_keys
+    chown -R ubuntu:ubuntu /home/ubuntu/.ssh
+    chmod 700 /home/ubuntu/.ssh  
+    chmod 600 /home/ubuntu/.ssh/authorized_keys
+    
+    # Create dev user
+    useradd -m -s /bin/bash dev
+    echo "dev:dev123" | chpasswd
+    usermod -aG sudo dev
+    mkdir -p /home/dev/.ssh
+    cat /tmp/vagrant-pubkey >> /home/dev/.ssh/authorized_keys
+    chown -R dev:dev /home/dev/.ssh
+    chmod 700 /home/dev/.ssh
+    chmod 600 /home/dev/.ssh/authorized_keys
+    
+    rm /tmp/vagrant-pubkey
+  SHELL
+  
+  # Router-specific provisioning
+  config.vm.provision "shell", inline: <<-SHELL
+    apt-get update
+    
+    # Install networking and routing tools
+    apt-get install -y \\
+      iproute2 \\
+      iptables \\
+      ipset \\
+      bridge-utils \\
+      vlan \\
+      tcpdump \\
+      nftables \\
+      bird2 \\
+      frr \\
+      strongswan \\
+      openvpn \\
+      dnsmasq \\
+      bind9 \\
+      nginx \\
+      haproxy \\
+      keepalived \\
+      quagga \\
+      netfilter-persistent \\
+      iptables-persistent \\
+      qemu-guest-agent
+    
+    # Enable IP forwarding
+    echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+    echo 'net.ipv6.conf.all.forwarding=1' >> /etc/sysctl.conf
+    sysctl -p
+    
+    # Enable services
+    systemctl enable qemu-guest-agent
+    systemctl enable bird
+    systemctl enable frr
+    systemctl enable dnsmasq
+    systemctl enable bind9
+    systemctl enable nginx
+    systemctl enable netfilter-persistent
+    
+    # Configure basic firewall rules
+    cat > /etc/iptables/rules.v4 << 'EOF'
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+# Allow loopback
+-A INPUT -i lo -j ACCEPT
+# Allow established connections
+-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+# Allow SSH
+-A INPUT -p tcp --dport 22 -j ACCEPT
+# Allow ICMP
+-A INPUT -p icmp -j ACCEPT
+COMMIT
+
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+COMMIT
+EOF
+
+    # Basic router configuration message
+    cat > /etc/motd << 'EOF'
+==========================================
+    Virtual Router VM
+==========================================
+Installed packages:
+- Routing: bird2, frr, quagga
+- VPN: strongswan, openvpn  
+- DNS: bind9, dnsmasq
+- Load Balancing: nginx, haproxy, keepalived
+- Networking: iptables, bridge-utils, vlan
+- Monitoring: tcpdump
+
+IP forwarding is enabled.
+Basic firewall rules are configured.
+
+Configuration files:
+- /etc/bird/bird.conf (BGP routing)
+- /etc/frr/ (routing protocols)
+- /etc/iptables/ (firewall rules)
+- /etc/dnsmasq.conf (DHCP/DNS)
+==========================================
+EOF
+
+    echo "Virtual router setup complete!"
+  SHELL
+end

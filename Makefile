@@ -23,6 +23,8 @@ help: ## Show this help message
 	@echo "  make create-k8s [NAME=<name>]      - Create Kubernetes host VM"
 	@echo "  make create-kata [NAME=<name>]     - Create Kata host VM"
 	@echo "  make create-observer [NAME=<name>] - Create Observer host VM"
+	@echo "  make create-router [NAME=<name>]   - Create Virtual Router VM"
+	@echo "  make create-pfsense [NAME=<name>]  - Create pfSense Firewall VM"
 	@echo ""
 	@echo "VM Management:"
 	@echo "  make list                          - List all VM images and running VMs"
@@ -44,7 +46,8 @@ help: ## Show this help message
 	@echo "  Users: ubuntu (password: ubuntu), dev (password: dev123)"
 
 # VM Creation targets
-.PHONY: create-base create-lxd create-docker create-k8s create-kata create-observer
+.PHONY: create-base create-lxd create-docker create-k8s create-kata create-observer create-router create-pfsense
+.PHONY: base lxd docker k8s kata observer router pfsense
 create-base: ## Create base Ubuntu VM
 ifdef NAME
 	$(call vm_vagrant,create base $(NAME))
@@ -85,6 +88,20 @@ ifdef NAME
 	$(call vm_vagrant,create observer $(NAME))
 else
 	$(call vm_vagrant,up observer)
+endif
+
+create-router: ## Create Virtual Router VM
+ifdef NAME
+	$(call vm_vagrant,create router $(NAME))
+else
+	$(call vm_vagrant,up router)
+endif
+
+create-pfsense: ## Create pfSense Firewall VM
+ifdef NAME
+	$(call vm_vagrant,create pfsense $(NAME))
+else
+	$(call vm_vagrant,up pfsense)
 endif
 
 # VM Management targets  
@@ -156,3 +173,13 @@ dev-vm: ## Create and start a development VM
 web-vm: ## Create and start a web server VM
 	$(call vm_vagrant,up docker)
 	@echo "Web server VM ready. Connect with: make ssh NAME=docker"
+
+# Clean aliases (without create- prefix)
+base: create-base        ## Alias for create-base
+lxd: create-lxd          ## Alias for create-lxd  
+docker: create-docker    ## Alias for create-docker
+k8s: create-k8s          ## Alias for create-k8s
+kata: create-kata        ## Alias for create-kata
+observer: create-observer ## Alias for create-observer
+router: create-router    ## Alias for create-router
+pfsense: create-pfsense  ## Alias for create-pfsense

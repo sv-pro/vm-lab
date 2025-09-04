@@ -3,6 +3,8 @@ vm-images/output/*.qcow2
 vm-images/output/*/
 vm-images/packer/packer_cache/
 vm-images/packer/*.log
+output/*.qcow2
+output/*/
 
 # Packer temporary files
 packer_cache/

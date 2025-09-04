@@ -17,6 +17,7 @@ variable "ssh_username" { default = "ubuntu" }
 variable "ssh_private_key_file" { default = "" }
 variable "disk_size" { default = "20G" }
 variable "image_name" { default = "ubuntu-custom" }
+variable "hostname" { default = "ubuntu" }
 variable "extra_packages" {
   type    = list(string)
   default = []
@@ -54,6 +55,7 @@ source "qemu" "ubuntu-cloud" {
   cd_content = {
     "user-data" = templatefile("cloud-init/user-data.yml", {
       ssh_public_key = file("cloud-init/id_rsa.pub")
+      hostname = var.hostname
     })
     "meta-data" = file("cloud-init/meta-data.yml")
   }

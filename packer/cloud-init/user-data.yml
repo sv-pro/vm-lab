@@ -3,11 +3,20 @@ users:
   - name: ubuntu
     sudo: ALL=(ALL) NOPASSWD:ALL
     shell: /bin/bash
+    plain_text_passwd: ubuntu
+    lock_passwd: false
     ssh_authorized_keys:
       - ${ssh_public_key}
+  - name: dev
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    plain_text_passwd: dev123
+    lock_passwd: false
+    ssh_authorized_keys:
+      - ${ssh_public_key}    
 
 # Enable SSH
-ssh_pwauth: false
+ssh_pwauth: true
 disable_root: true
 
 # Package updates
@@ -22,7 +31,7 @@ packages:
   - htop
 
 # Set hostname
-hostname: ubuntu
+hostname: ${hostname}
 
 # Final message
 final_message: "Cloud-init setup complete. System ready."

@@ -44,12 +44,12 @@ source "qemu" "ubuntu" {
   ]
   
   # HTTP server for autoinstall configuration
-  http_directory = "http"
+  http_directory = "packer/http"
   http_port_min  = 8000
   http_port_max  = 9000
   
   # SSH configuration
-  ssh_timeout = "20m"
+  ssh_timeout = "30m"
   
   # Boot wait
   boot_wait = "5s"

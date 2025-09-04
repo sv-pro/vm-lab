@@ -15,104 +15,111 @@ Build infrastructure for generating Ubuntu 24.04 qcow2 images for 5 specialized 
 - [x] ~~Generate/obtain SHA256 checksum for the ISO~~
 - [x] ~~Create base configuration with ISO details~~
 
-## Phase 2: Core Packer Template ✅
-### Task 2.1: Main Template Creation ✅
-- [x] ~~Create `vm-images/packer/ubuntu-custom.pkr.hcl` with:~~
-  - ~~Packer plugin requirements (QEMU >= 1.0.0)~~
-  - ~~Variable declarations (iso_url, iso_checksum, ssh credentials, disk_size, image_name, extra_packages, provision_inline)~~
-  - ~~QEMU source configuration with proper boot commands~~
-  - ~~Build block with shell provisioner~~
-  - ~~Post-processor for file renaming~~
-- [x] ~~Install Packer binary (v1.14.1)~~
-- [x] ~~Create autoinstall HTTP configuration files~~
+## Phase 2: VM Management Infrastructure ✅
+### Task 2.1: Core VM Management ✅
+- [x] ~~Restructure project layout (move vm-images/ to root)~~
+- [x] ~~Create comprehensive vm-manage.sh script with:~~
+  - VM creation with name conflict resolution
+  - VM lifecycle management (start/stop with validation)
+  - SSH integration with auto port detection
+  - VM deletion with safety checks
+- [x] ~~Add Makefile wrapper for all vm-manage.sh operations~~
+- [x] ~~Implement hostname customization (VM name becomes system hostname)~~
+- [x] ~~Enable dual authentication (SSH keys + password login)~~
+- [x] ~~Fix Docker installation configuration~~
+- [x] ~~Add comprehensive error handling and user feedback~~
 
-### Task 2.2: Base Configuration Testing 🔄
-- [x] ~~Create minimal `values-base.hcl` for testing~~
-- [x] ~~Validate Packer template syntax~~
-- [x] ~~Test base image build process~~ (failed: SSH timeout after 25min)
-- [x] ~~Fix autoinstall configuration issues~~
-  - Fixed network config to use wildcard matching (`e*`)
-  - Simplified storage layout (direct vs LVM)
-  - Fixed boot commands and password hash
-- [x] ~~Retry build with corrected configuration~~ (in progress: 7min waiting for SSH)
-  - VM actively running with 28% CPU usage
-  - Network and boot configuration working correctly
-  - Build process much more stable than first attempt
-- [ ] Complete SSH connection and provisioning (ongoing)
-- [ ] Verify output qcow2 file generation
+### Task 2.2: Cloud Image Template ✅
+- [x] ~~Switch to cloud-init based approach using Ubuntu cloud images~~
+- [x] ~~Create `packer/ubuntu-cloud-base.pkr.hcl` template~~
+- [x] ~~Implement role-specific configurations (Docker, K8s, LXD, etc.)~~
+- [x] ~~Add SSH key management and cloud-init user-data templates~~
+- [x] ~~Test and validate VM creation and management~~
 
-## Phase 3: Role-Specific Configurations
-### Task 3.1: LXD Host Configuration
-- [ ] Create `values-lxd.hcl` with:
-  - Package list: lxd, zfsutils-linux, prometheus-node-exporter
-  - LXD initialization commands
-  - ZFS storage pool setup (if applicable)
+## Phase 3: Image Flow Management System
+### Task 3.1: Smart Image Resolution ⏳
+- [ ] Implement role-dedicated image preference system
+  - When creating VMs, check for role-specific images first (e.g., ubuntu-24.04-docker)
+  - Fall back to generic base images if role-specific images unavailable
+  - Auto-build missing role images when requested
+- [ ] Add image dependency tracking
+  - Maintain mapping between VM roles and preferred image names
+  - Validate image availability before VM operations
+- [ ] Create image build queue system
+  - Queue missing images for automatic background building
+  - Show build progress and ETA to users
 
-### Task 3.2: Docker Host Configuration  
-- [ ] Create `values-docker.hcl` with:
-  - Package list: docker.io, docker-compose
-  - Docker service enablement
-  - User group configuration for docker access
+### Task 3.2: VM-to-Image Export System ⏳
+- [ ] Implement `export` command in vm-manage.sh
+  - `make export NAME=my-vm TARGET=my-custom-image`
+  - Stop VM, create qcow2 snapshot, compress and store
+  - Update image registry with new custom image
+- [ ] Add export validation and cleanup
+  - Verify export integrity
+  - Clean up temporary files
+  - Update image metadata and size information
 
-### Task 3.3: Kubernetes Host Configuration
-- [ ] Create `values-k8s.hcl` with:
-  - Package list: snapd
-  - MicroK8s installation via snap
-  - User group configuration for microk8s
-  - Increased disk size (30G)
+### Task 3.3: Image Registry & Lifecycle ⏳
+- [ ] Create image registry system
+  - Track all available images with metadata (creation date, size, role, source)
+  - Implement `make images` command to list all managed images
+  - Add image validation and cleanup commands
+- [ ] Ensure VM-image consistency
+  - Verify all listed VMs have corresponding images available
+  - Auto-clean orphaned images
+  - Warn about missing dependencies
 
-### Task 3.4: Kata Containers Host Configuration
-- [ ] Create `values-kata.hcl` with:
-  - Package list: docker.io, qemu-system-x86, kata-runtime, kata-proxy, kata-shim
-  - Docker daemon configuration for kata-runtime
-  - Docker service enablement
-  - Increased disk size (25G)
+### Task 3.4: Role-Specific Image Templates ⏳
+- [ ] Complete role-specific configurations:
+  - LXD Host: lxd, bridge-utils, lxd-client
+  - Kubernetes Host: kubeadm, kubectl, kubelet, containerd
+  - Kata Host: kata-runtime, Docker with kata configuration
+  - Observer Host: monitoring tools, eBPF utilities
+- [ ] Implement image inheritance system
+  - Base image → Role image → Custom image hierarchy
+  - Efficient layered building to minimize duplication
 
-### Task 3.5: Observer Host Configuration
-- [ ] Create `values-observer.hcl` with:
-  - Package list: htop, iftop, nload, tcpdump, bpftrace, bpftool, bpfcc-tools, prometheus-node-exporter, grafana-agent
-  - Monitoring tools configuration
+## Phase 4: Advanced VM Operations
+### Task 4.1: VM Lifecycle Enhancement
+- [ ] Add VM templates and cloning
+  - Create VMs from templates with predefined configurations
+  - Clone existing VMs with customization options
+- [ ] Implement VM snapshots
+  - Create, list, restore, and delete VM snapshots
+  - Integrate with image export system
 
-## Phase 4: Build Automation & Scripts
-### Task 4.1: Build Scripts
-- [ ] Create `build-all.sh` script for building all images
-- [ ] Create individual build scripts for each role
-- [ ] Add error handling and logging
-- [ ] Add build validation checks
+### Task 4.2: Multi-VM Management  
+- [ ] Add VM groups and batch operations
+  - Start/stop/manage multiple VMs simultaneously
+  - Create VM environments (e.g., k8s cluster = 3 VMs)
+- [ ] Implement resource management
+  - Track CPU, memory, disk usage across VMs
+  - Prevent resource over-allocation
 
-### Task 4.2: Makefile Creation
-- [ ] Create Makefile with targets for:
-  - Individual role builds
-  - Clean output directory
-  - Validate all configurations
-  - Build all images sequentially
+## Phase 5: Integration & Testing
+### Task 5.1: Image Flow Integration Testing
+- [ ] Test complete image flow scenarios:
+  - Create VM with auto-building missing role images
+  - Export running VM to custom image
+  - Create new VM from exported custom image
+- [ ] Validate image consistency and registry accuracy
+- [ ] Test role-specific functionality in generated images
 
-## Phase 5: Testing & Validation
-### Task 5.1: Image Testing
-- [ ] Create QEMU test scripts to verify each image boots
-- [ ] Validate installed packages for each role
-- [ ] Test role-specific functionality:
-  - LXD: Container creation
-  - Docker: Container running
-  - K8s: MicroK8s status
-  - Kata: Runtime availability
-  - Observer: Monitoring tools accessibility
+### Task 5.2: Performance & Reliability
+- [ ] Optimize image building and VM operations performance
+- [ ] Add comprehensive error recovery mechanisms
+- [ ] Implement progress reporting and logging systems
 
-### Task 5.2: CI/CD Preparation
-- [ ] Create GitHub Actions workflow (optional)
-- [ ] Document system requirements
-- [ ] Create troubleshooting guide
-
-## Phase 6: Documentation & Cleanup
+## Phase 6: Documentation & Production Readiness
 ### Task 6.1: Documentation Updates
-- [ ] Update CLAUDE.md with build procedures
-- [ ] Update TODO.md with completion status
-- [ ] Create detailed README for vm-images directory
+- [ ] Update CLAUDE.md with complete image flow procedures
+- [ ] Document all VM and image management commands
+- [ ] Create troubleshooting guide for common scenarios
 
-### Task 6.2: Final Validation
-- [ ] Test complete build process from scratch
-- [ ] Verify all 5 role images build successfully
-- [ ] Clean up temporary files and optimize .gitignore
+### Task 6.2: Production Polish
+- [ ] Add configuration validation and health checks
+- [ ] Implement backup and recovery procedures for image registry
+- [ ] Add monitoring and alerting for long-running operations
 
 ## Prerequisites & Dependencies
 - QEMU/KVM virtualization support
@@ -121,23 +128,29 @@ Build infrastructure for generating Ubuntu 24.04 qcow2 images for 5 specialized 
 - Sufficient disk space for build artifacts (~150GB recommended)
 - Internet connectivity for package downloads
 
-## Build Commands Summary
+## Command Summary
 ```bash
-# Individual builds
-packer build -var-file=packer/values-lxd.hcl packer/ubuntu-custom.pkr.hcl
-packer build -var-file=packer/values-docker.hcl packer/ubuntu-custom.pkr.hcl
-packer build -var-file=packer/values-k8s.hcl packer/ubuntu-custom.pkr.hcl
-packer build -var-file=packer/values-kata.hcl packer/ubuntu-custom.pkr.hcl
-packer build -var-file=packer/values-observer.hcl packer/ubuntu-custom.pkr.hcl
+# VM Management
+make create-docker NAME=web-server    # Create role-specific VM
+make start NAME=web-server            # Start VM with validation
+make ssh NAME=web-server              # SSH with auto port detection
+make stop NAME=web-server             # Stop VM safely
+make delete NAME=web-server           # Delete VM with confirmation
 
-# Automated build
-./build-all.sh
-# or
-make all
+# Image Management (Phase 3)
+make images                          # List all managed images
+make export NAME=my-vm TARGET=my-image  # Export VM to custom image
+make build ROLE=docker               # Build role-specific image
+
+# Advanced Operations (Phase 4)
+make clone SOURCE=template TARGET=new-vm  # Clone VM
+make snapshot NAME=vm ACTION=create   # VM snapshot management
 ```
 
 ## Expected Deliverables
-- 5 specialized Ubuntu 24.04 qcow2 images
-- Reusable Packer infrastructure
-- Build automation scripts
-- Comprehensive documentation
+- Complete VM lifecycle management system
+- Smart image flow with auto-building and exports
+- Role-specific image templates and inheritance
+- Image registry with metadata tracking
+- Advanced VM operations (cloning, snapshots, batch management)
+- Production-ready tooling with comprehensive error handling

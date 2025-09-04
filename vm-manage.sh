@@ -190,6 +190,32 @@ case "$1" in
             exit 1
         fi
         
+        # Validate qcow2 file
+        if ! qemu-img info "$TARGET_IMAGE" >/dev/null 2>&1; then
+            echo "Error: $TARGET_IMAGE is not a valid image file"
+            echo "File info:"
+            ls -lh "$TARGET_IMAGE"
+            exit 1
+        fi
+        
+        # Check if it's actually qcow2 format and non-empty
+        IMG_FORMAT=$(qemu-img info "$TARGET_IMAGE" | grep "file format:" | cut -d: -f2 | xargs)
+        IMG_SIZE=$(qemu-img info "$TARGET_IMAGE" | grep "virtual size:" | cut -d'(' -f2 | cut -d' ' -f1)
+        
+        if [ "$IMG_FORMAT" != "qcow2" ]; then
+            echo "Error: $TARGET_IMAGE is not in qcow2 format (found: $IMG_FORMAT)"
+            echo "File info:"
+            ls -lh "$TARGET_IMAGE"
+            exit 1
+        fi
+        
+        if [ "$IMG_SIZE" = "0" ]; then
+            echo "Error: $TARGET_IMAGE appears to be empty (0 bytes)"
+            echo "File info:"
+            ls -lh "$TARGET_IMAGE"
+            exit 1
+        fi
+        
         if pgrep -f "$TARGET_IMAGE" > /dev/null; then
             echo "VM is already running"
             exit 1
@@ -202,15 +228,27 @@ case "$1" in
         done
         
         echo "Starting VM: $(basename "$TARGET_IMAGE")"
-        qemu-system-x86_64 \
+        if qemu-system-x86_64 \
             -m 2048 \
             -cpu host \
             -enable-kvm \
             -drive file="$TARGET_IMAGE",format=qcow2 \
             -netdev user,id=net0,hostfwd=tcp::$AVAILABLE_PORT-:22 \
             -device virtio-net,netdev=net0 \
-            -daemonize
-        echo "VM started. SSH with: ssh -i $SSH_KEY ubuntu@localhost -p $AVAILABLE_PORT"
+            -daemonize; then
+            
+            # Wait a moment and verify the VM actually started
+            sleep 2
+            if pgrep -f "$TARGET_IMAGE" > /dev/null; then
+                echo "VM started successfully. SSH with: ssh -i $SSH_KEY ubuntu@localhost -p $AVAILABLE_PORT"
+            else
+                echo "Error: VM failed to start - process not found"
+                exit 1
+            fi
+        else
+            echo "Error: Failed to start VM - QEMU command failed"
+            exit 1
+        fi
         ;;
     stop)
         shift # Remove 'stop' from arguments

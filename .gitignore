@@ -30,3 +30,12 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Vagrant runtime files - NEVER commit these
+.vagrant/
+**/.vagrant/
+vms/**/.vagrant/
+
+# Custom VM workspaces (keep templates, not instances)
+vms/*/
+!vms/.gitkeep

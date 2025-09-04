@@ -110,11 +110,17 @@ Vagrant.configure("2") do |config|
     
     lxd.vm.provision "shell", inline: <<-SHELL
       apt-get update
-      apt-get install -y lxd zfsutils-linux prometheus-node-exporter qemu-guest-agent
+      apt-get install -y lxd zfsutils-linux qemu-guest-agent
       systemctl enable qemu-guest-agent
       usermod -aG lxd vagrant
       usermod -aG lxd ubuntu
       usermod -aG lxd dev
+      
+      # Install prometheus-node-exporter if available
+      if apt-cache show prometheus-node-exporter >/dev/null 2>&1; then
+          apt-get install -y prometheus-node-exporter
+          systemctl enable prometheus-node-exporter
+      fi
     SHELL
   end
 
@@ -165,10 +171,14 @@ EOF
     
     observer.vm.provision "shell", inline: <<-SHELL
       apt-get update
-      apt-get install -y htop iftop nload tcpdump bpftrace bpfcc-tools \\
-                         prometheus-node-exporter grafana-agent qemu-guest-agent
+      apt-get install -y htop iftop nload tcpdump bpftrace bpfcc-tools qemu-guest-agent
       systemctl enable qemu-guest-agent
-      systemctl enable prometheus-node-exporter
+      
+      # Install prometheus-node-exporter if available
+      if apt-cache show prometheus-node-exporter >/dev/null 2>&1; then
+          apt-get install -y prometheus-node-exporter
+          systemctl enable prometheus-node-exporter
+      fi
     SHELL
   end
 end

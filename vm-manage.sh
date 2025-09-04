@@ -10,6 +10,54 @@ echo "SSH key: $SSH_KEY"
 
 SSH_PORT="2222"
 
+# Bridge networking configuration
+VM_BRIDGE="vmlab-br0"
+VM_NETWORK="192.168.100"
+VM_IP_START=10
+
+# Get next available VM IP
+get_next_vm_ip() {
+    local ip_suffix=$VM_IP_START
+    local vm_ip
+    
+    while true; do
+        vm_ip="${VM_NETWORK}.${ip_suffix}"
+        if ! ping -c 1 -W 1 "$vm_ip" >/dev/null 2>&1; then
+            echo "$vm_ip"
+            return 0
+        fi
+        ip_suffix=$((ip_suffix + 1))
+        
+        # Safety limit
+        if [ "$ip_suffix" -gt 254 ]; then
+            echo "Error: No available IP addresses in ${VM_NETWORK}.0/24 range" >&2
+            exit 1
+        fi
+    done
+}
+
+# Create TAP interface for VM
+create_tap_interface() {
+    local tap_name="$1"
+    local vm_ip="$2"
+    
+    # Create TAP interface
+    sudo ip tuntap add "$tap_name" mode tap
+    sudo ip link set "$tap_name" up
+    sudo brctl addif "$VM_BRIDGE" "$tap_name"
+    
+    echo "$tap_name"
+}
+
+# Remove TAP interface
+remove_tap_interface() {
+    local tap_name="$1"
+    if ip link show "$tap_name" >/dev/null 2>&1; then
+        sudo brctl delif "$VM_BRIDGE" "$tap_name" 2>/dev/null
+        sudo ip link delete "$tap_name" 2>/dev/null
+    fi
+}
+
 # Check if running in interactive mode
 is_interactive() {
     [[ -t 0 && -t 1 ]]
@@ -262,32 +310,42 @@ case "$1" in
             exit 1
         fi
         
-        # Find available SSH port
-        AVAILABLE_PORT=$SSH_PORT
-        while netstat -ln | grep ":$AVAILABLE_PORT " > /dev/null 2>&1; do
-            AVAILABLE_PORT=$((AVAILABLE_PORT + 1))
-        done
+        # Get VM name and IP for bridge networking
+        VM_NAME=$(basename "$TARGET_IMAGE" .qcow2)
+        VM_IP=$(get_next_vm_ip)
+        # Generate short TAP name (max 15 chars)
+        VM_HASH=$(echo "$VM_NAME" | md5sum | cut -c1-6)
+        TAP_NAME="tap${VM_HASH}"
         
-        echo "Starting VM: $(basename "$TARGET_IMAGE")"
+        echo "Starting VM: $VM_NAME"
+        echo "Assigned IP: $VM_IP"
+        
+        # Create TAP interface
+        create_tap_interface "$TAP_NAME" "$VM_IP"
+        
+        # Start VM with bridge networking
         if qemu-system-x86_64 \
             -m 2048 \
             -cpu host \
             -enable-kvm \
             -drive file="$TARGET_IMAGE",format=qcow2 \
-            -netdev user,id=net0,hostfwd=tcp::$AVAILABLE_PORT-:22 \
-            -device virtio-net,netdev=net0 \
+            -netdev tap,id=net0,ifname="$TAP_NAME",script=no,downscript=no \
+            -device virtio-net,netdev=net0,mac=52:54:00:$(printf '%02x:%02x:%02x' $((RANDOM%256)) $((RANDOM%256)) $((RANDOM%256))) \
             -daemonize; then
             
             # Wait a moment and verify the VM actually started
             sleep 2
             if pgrep -f "$TARGET_IMAGE" > /dev/null; then
-                echo "VM started successfully. SSH with: ssh -i $SSH_KEY ubuntu@localhost -p $AVAILABLE_PORT"
+                echo "VM started successfully. SSH with: ssh -i $SSH_KEY ubuntu@$VM_IP"
+                echo "VM IP: $VM_IP"
             else
                 echo "Error: VM failed to start - process not found"
+                remove_tap_interface "$TAP_NAME"
                 exit 1
             fi
         else
             echo "Error: Failed to start VM - QEMU command failed"
+            remove_tap_interface "$TAP_NAME"
             exit 1
         fi
         ;;
@@ -304,8 +362,15 @@ case "$1" in
         
         PID=$(pgrep -f "$TARGET_IMAGE")
         if [ -n "$PID" ]; then
+            VM_NAME=$(basename "$TARGET_IMAGE" .qcow2)
+            VM_HASH=$(echo "$VM_NAME" | md5sum | cut -c1-6)
+            TAP_NAME="tap${VM_HASH}"
+            
             kill "$PID"
-            echo "VM stopped: $(basename "$TARGET_IMAGE" .qcow2)"
+            echo "VM stopped: $VM_NAME"
+            
+            # Clean up TAP interface
+            remove_tap_interface "$TAP_NAME"
         else
             echo "Error: VM '$(basename "$TARGET_IMAGE" .qcow2)' is not running or does not exist"
             echo "Available VMs:"
@@ -341,17 +406,32 @@ case "$1" in
             exit 1
         fi
         
-        # Find the SSH port for this VM
-        VM_PID=$(pgrep -f "$TARGET_IMAGE")
-        VM_PORT=$(ps -p "$VM_PID" -o args= | grep -o 'hostfwd=tcp::[0-9]*-:22' | cut -d: -f3 | cut -d- -f1)
+        # Find the VM IP from bridge network
+        VM_NAME=$(basename "$TARGET_IMAGE" .qcow2)
+        VM_HASH=$(echo "$VM_NAME" | md5sum | cut -c1-6)
+        TAP_NAME="tap${VM_HASH}"
         
-        if [ -z "$VM_PORT" ]; then
-            echo "Error: Could not determine SSH port for VM"
+        # Get VM IP by checking ARP table for the TAP interface
+        VM_IP=""
+        if ip link show "$TAP_NAME" >/dev/null 2>&1; then
+            # Try to find the IP from the VM network range
+            for ip_suffix in $(seq $VM_IP_START 254); do
+                test_ip="${VM_NETWORK}.${ip_suffix}"
+                if ping -c 1 -W 1 "$test_ip" >/dev/null 2>&1; then
+                    VM_IP="$test_ip"
+                    break
+                fi
+            done
+        fi
+        
+        if [ -z "$VM_IP" ]; then
+            echo "Error: Could not determine VM IP address"
+            echo "VM may not be fully booted yet. Try again in a few seconds."
             exit 1
         fi
         
-        echo "Connecting to $(basename "$TARGET_IMAGE" .qcow2) on port $VM_PORT..."
-        ssh -i "$SSH_KEY" ubuntu@localhost -p "$VM_PORT"
+        echo "Connecting to $VM_NAME at $VM_IP..."
+        ssh -i "$SSH_KEY" ubuntu@"$VM_IP"
         ;;
     delete)
         shift # Remove 'delete' from arguments

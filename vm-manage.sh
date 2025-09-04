@@ -21,6 +21,42 @@ vm_image_exists() {
     [[ -f "output/${name}.qcow2" ]]
 }
 
+# Get or create role-specific base image
+get_or_create_image() {
+    local role="$1"
+    local role_image="ubuntu-24.04-${role}"
+    
+    if vm_image_exists "$role_image"; then
+        echo "Using existing $role image: $role_image" >&2
+        echo "$role_image"
+        return 0
+    fi
+    
+    echo "Role image $role_image not found. Building it first..." >&2
+    if [ ! -f "${SCRIPT_DIR}/packer/values-cloud-$role.hcl" ]; then
+        echo "Error: ${SCRIPT_DIR}/packer/values-cloud-$role.hcl not found" >&2
+        exit 1
+    fi
+    
+    # Clean up any incomplete build directories
+    if [ -d "${SCRIPT_DIR}/output/$role_image" ]; then
+        echo "Cleaning up incomplete build directory: output/$role_image" >&2
+        rm -rf "${SCRIPT_DIR}/output/$role_image"
+    fi
+    
+    cd "${SCRIPT_DIR}/packer"
+    if packer build -var="image_name=$role_image" -var="hostname=$role_image" -var-file="values-cloud-$role.hcl" "ubuntu-cloud-base.pkr.hcl" >&2; then
+        cd "${SCRIPT_DIR}"
+        echo "Successfully built $role image: $role_image" >&2
+        echo "$role_image"
+        return 0
+    else
+        cd "${SCRIPT_DIR}"
+        echo "Error: Failed to build $role image" >&2
+        exit 1
+    fi
+}
+
 # Generate unique name with auto-incrementing suffix
 generate_unique_name() {
     local base_name="$1"
@@ -135,16 +171,21 @@ case "$1" in
                 cd "${SCRIPT_DIR}"
                 ;;
             lxd|docker|k8s|kata|observer)
-                if [ ! -f "${SCRIPT_DIR}/packer/values-cloud-$ROLE.hcl" ]; then
-                    echo "Error: ${SCRIPT_DIR}/packer/values-cloud-$ROLE.hcl not found"
-                    echo "Create the role configuration file first"
+                # Get or create role-specific image first
+                ROLE_IMAGE=$(get_or_create_image "$ROLE")
+                
+                # Now clone the role image to create the VM
+                echo "Creating $ROLE VM '$VM_NAME' from image '$ROLE_IMAGE'"
+                cleanup_existing_vm "$VM_NAME"
+                
+                # Copy the role image to create the VM instance
+                if [ -f "output/${ROLE_IMAGE}.qcow2" ]; then
+                    cp "output/${ROLE_IMAGE}.qcow2" "output/${VM_NAME}.qcow2"
+                    echo "VM '$VM_NAME' created successfully from $ROLE image"
+                else
+                    echo "Error: Role image output/${ROLE_IMAGE}.qcow2 not found after build"
                     exit 1
                 fi
-                echo "Creating $ROLE VM image: $VM_NAME"
-                cleanup_existing_vm "$VM_NAME"
-                cd "${SCRIPT_DIR}/packer"
-                packer build -var="image_name=$VM_NAME" -var="hostname=$VM_NAME" -var-file="values-cloud-$ROLE.hcl" "ubuntu-cloud-base.pkr.hcl"
-                cd "${SCRIPT_DIR}"
                 ;;
             *)
                 echo "Unknown role: $ROLE"

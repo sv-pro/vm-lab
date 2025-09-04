@@ -6,20 +6,19 @@ disk_size           = "20G"
 ssh_username        = "ubuntu"
 ssh_private_key_file = "cloud-init/id_rsa"
 
-# LXD specific packages
+# LXD specific packages (snapd is already installed in Ubuntu cloud images)
 extra_packages = [
-  "lxd",
-  "lxd-client",
   "bridge-utils",
   "dnsmasq-base",
   "uidmap"
 ]
 
-# LXD specific provisioning
+# LXD specific provisioning (install via snap in Ubuntu 24.04)
 provision_inline = [
-  "echo 'Configuring LXD...'",
+  "echo 'Installing LXD via snap...'",
+  "sudo snap install lxd --channel=latest/stable",
   "sudo usermod -aG lxd ubuntu",
-  "sudo systemctl enable lxd",
-  "sudo systemctl start lxd",
+  "echo 'Waiting for LXD to initialize...'",
+  "sleep 10",
   "echo 'LXD installation complete'"
 ]

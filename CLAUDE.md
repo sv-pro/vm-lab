@@ -4,44 +4,78 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a VM image build project using QEMU and Packer to create Ubuntu 24.04 qcow2 images for different roles:
+This is a VM management project transitioning from custom QEMU/Packer-based image building to Vagrant-based VM provisioning for Ubuntu 24.04 VMs with different roles:
 - LXD host
 - Docker host 
 - Kubernetes host
 - Kata host
 - Observer host (monitoring/experiments with eBPF/Prometheus/Grafana)
 
-## Architecture
+## Architecture Transition
 
-The project uses a template-based approach with:
-- Single universal Packer template: `vm-images/packer/ubuntu-custom.pkr.hcl`
-- Role-specific values files: `vm-images/packer/values-{role}.hcl`
-- Generated images stored in: `vm-images/output/`
+**Previous Approach (QEMU/Packer):**
+- Custom vm-manage.sh script for VM lifecycle management
+- Packer templates for building role-specific qcow2 images
+- Manual image building and VM provisioning
 
-The template uses variables for customization:
-- `extra_packages`: List of packages to install for each role
-- `provision_inline`: Custom shell commands for role-specific configuration
-- `image_name`, `disk_size`: Image configuration
+**Current Approach (Vagrant):**
+- Vagrant for VM provisioning and lifecycle management
+- Multi-machine Vagrantfile supporting all VM roles
+- Declarative VM configuration with automatic provisioning
+- Provider flexibility (VirtualBox, libvirt, etc.)
 
-## Build Commands
+## Current Project Structure
 
-Build individual role images:
-```bash
-packer build -var-file=packer/values-lxd.hcl packer/ubuntu-custom.pkr.hcl
-packer build -var-file=packer/values-docker.hcl packer/ubuntu-custom.pkr.hcl
-packer build -var-file=packer/values-k8s.hcl packer/ubuntu-custom.pkr.hcl
-packer build -var-file=packer/values-kata.hcl packer/ubuntu-custom.pkr.hcl
-packer build -var-file=packer/values-observer.hcl packer/ubuntu-custom.pkr.hcl
+```
+vm-lab/
+├── Vagrantfile              # Multi-machine VM definitions
+├── packer/                  # Legacy Packer configs (may be removed)
+├── output/                  # VM artifacts and images
+├── vm-manage.sh            # Legacy VM management script
+└── Makefile                # Build automation
 ```
 
-All builds are executed from the repository root directory.
+## Vagrant Commands
 
-## Project Structure
+Basic VM operations:
+```bash
+# Start all VMs
+vagrant up
 
-The current implementation is planned but not yet created. All files should be created under the `vm-images/` directory structure as outlined in TODO.md:154.
+# Start specific VM role
+vagrant up docker
+vagrant up k8s
+vagrant up lxd
+vagrant up kata
+vagrant up observer
+
+# SSH into VMs
+vagrant ssh docker
+vagrant ssh k8s
+
+# Stop VMs
+vagrant halt
+vagrant halt docker
+
+# Destroy VMs
+vagrant destroy
+vagrant destroy docker
+
+# Check VM status
+vagrant status
+```
+
+## VM Role Configurations
+
+Each VM role should be configured in the Vagrantfile with:
+- Role-specific provisioning scripts
+- Appropriate resource allocation (CPU, memory, disk)
+- Network configuration
+- Port forwarding as needed
+- Role-specific package installation
 
 ## Dependencies
 
-- Packer (HashiCorp Packer with QEMU plugin)
-- QEMU/KVM for virtualization
-- Ubuntu 24.04 ISO image (specified via iso_url and iso_checksum variables)
+- Vagrant 2.4.9+ 
+- VirtualBox or libvirt provider
+- Sufficient system resources for multiple VMs

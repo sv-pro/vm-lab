@@ -1,40 +1,40 @@
 # VM Lab Implementation Plan
 
 ## Overview
-Build infrastructure for generating Ubuntu 24.04 qcow2 images for 5 specialized roles using QEMU and Packer.
+VM management project transitioning from custom QEMU/Packer-based system to Vagrant-libvirt approach while maintaining the same Makefile interface.
 
-## Phase 1: Project Foundation ✅
-### Task 1.1: Directory Structure Setup ✅
-- [x] ~~Create `vm-images/` root directory~~
-- [x] ~~Create `vm-images/packer/` directory for Packer templates and values~~
-- [x] ~~Create `vm-images/output/` directory for generated qcow2 images~~
-- [x] ~~Add `.gitignore` entries for output directory and temporary files~~
+## Phase 1: Legacy System (Completed) ✅
+### Task 1.1: Custom VM Management System ✅
+- [x] ~~Created vm-manage.sh script with QEMU/KVM backend~~
+- [x] ~~Implemented bridge networking with TAP interfaces~~
+- [x] ~~Added role-specific VM provisioning (base, docker, k8s, lxd, kata, observer)~~
+- [x] ~~Created comprehensive Makefile wrapper interface~~
+- [x] ~~Integrated cloud-init for VM customization~~
 
-### Task 1.2: Ubuntu ISO Configuration ✅
-- [x] ~~Research and identify Ubuntu 24.04 server ISO download URL~~
-- [x] ~~Generate/obtain SHA256 checksum for the ISO~~
-- [x] ~~Create base configuration with ISO details~~
+## Phase 2: Vagrant Migration (Current Phase) 🔄
+### Task 2.1: Vagrant-libvirt Foundation ⏳
+- [ ] Install and configure vagrant-libvirt plugin
+- [ ] Create multi-machine Vagrantfile supporting all VM roles:
+  - base (Ubuntu 24.04)
+  - docker (Docker host)
+  - k8s (Kubernetes host) 
+  - lxd (LXD container host)
+  - kata (Kata containers host)
+  - observer (monitoring/eBPF host)
+- [ ] Configure libvirt provider settings (memory, CPU, networking)
+- [ ] Implement role-specific provisioning scripts
 
-## Phase 2: VM Management Infrastructure ✅
-### Task 2.1: Core VM Management ✅
-- [x] ~~Restructure project layout (move vm-images/ to root)~~
-- [x] ~~Create comprehensive vm-manage.sh script with:~~
-  - VM creation with name conflict resolution
-  - VM lifecycle management (start/stop with validation)
-  - SSH integration with auto port detection
-  - VM deletion with safety checks
-- [x] ~~Add Makefile wrapper for all vm-manage.sh operations~~
-- [x] ~~Implement hostname customization (VM name becomes system hostname)~~
-- [x] ~~Enable dual authentication (SSH keys + password login)~~
-- [x] ~~Fix Docker installation configuration~~
-- [x] ~~Add comprehensive error handling and user feedback~~
-
-### Task 2.2: Cloud Image Template ✅
-- [x] ~~Switch to cloud-init based approach using Ubuntu cloud images~~
-- [x] ~~Create `packer/ubuntu-cloud-base.pkr.hcl` template~~
-- [x] ~~Implement role-specific configurations (Docker, K8s, LXD, etc.)~~
-- [x] ~~Add SSH key management and cloud-init user-data templates~~
-- [x] ~~Test and validate VM creation and management~~
+### Task 2.2: Makefile Interface Preservation ⏳
+- [ ] Update Makefile to use Vagrant commands instead of vm-manage.sh
+- [ ] Maintain exact same command interface:
+  - `make create-{role} [NAME=<name>]` → `vagrant up <name>`
+  - `make start [NAME=<name>]` → `vagrant up <name>`
+  - `make stop [NAME=<name>]` → `vagrant halt <name>`
+  - `make ssh [NAME=<name>]` → `vagrant ssh <name>`
+  - `make delete NAME=<name>` → `vagrant destroy <name>`
+  - `make list` → `vagrant status`
+- [ ] Add VM name handling and role-based VM creation
+- [ ] Preserve all existing convenience targets (dev-vm, web-vm, etc.)
 
 ## Phase 3: Image Flow Management System
 ### Task 3.1: Smart Image Resolution ⏳

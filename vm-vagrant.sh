@@ -12,7 +12,7 @@ TEMPLATES_DIR="${SCRIPT_DIR}/templates"
 MAIN_VAGRANTFILE="${SCRIPT_DIR}/Vagrantfile"
 
 # Predefined VM roles
-PREDEFINED_ROLES=("base" "docker" "k8s" "lxd" "kata" "observer")
+PREDEFINED_ROLES=("base" "docker" "k8s" "lxd" "kata" "observer" "router" "pfsense")
 
 # Check if a name is a predefined role
 is_predefined_role() {

@@ -111,16 +111,16 @@ make status
 
 ## 🏆 VM Types: Choose Your Tool
 
-| VM Type | Command | Purpose | Key Features |
-|---------|---------|---------|--------------|
-| **🐧 Base** | `make base` | Clean Ubuntu | Minimal system, custom configs |
-| **🐳 Docker** | `make docker` | Container Host | Docker + Compose, private registry |
-| **☸️ Kubernetes** | `make k8s` | Orchestration | MicroK8s, kubectl, Helm ready |
-| **📦 LXD** | `make lxd` | System Containers | LXD + ZFS, container management |
-| **🏃 Kata** | `make kata` | Secure Containers | Hardware virtualization isolation |
-| **🔍 Observer** | `make observer` | Monitoring | eBPF, Prometheus, Grafana, tcpdump |
-| **🌐 Router** | `make router` | Network Routing | FRRouting, BGP, OSPF, VPN |
-| **🛡️ pfSense** | `make pfsense` | Firewall/Gateway | Web GUI, NAT, VPN, load balancing |
+| VM Type | Command | Purpose | Key Features | Status |
+|---------|---------|---------|--------------|---------|
+| **🐧 Base** | `make base` | Clean Ubuntu | Minimal system, custom configs | ✅ Production |
+| **🐳 Docker** | `make docker` | Container Host | Docker + Compose, private registry | ✅ Production |
+| **🔍 Observer** | `make observer` | Monitoring | eBPF, Prometheus, Grafana, tcpdump | ✅ Production |
+| **☸️ Kubernetes** | `make k8s` | Orchestration | MicroK8s, kubectl, Helm ready | ⚠️ Experimental |
+| **📦 LXD** | `make lxd` | System Containers | LXD + ZFS, container management | ⚠️ Experimental |
+| **🏃 Kata** | `make kata` | Secure Containers | Hardware virtualization isolation | ❌ Experimental |
+| **🌐 Router** | `make router` | Network Routing | FRRouting, BGP, OSPF, VPN | ❌ Experimental |
+| **🛡️ pfSense** | `make pfsense` | Firewall/Gateway | Web GUI, NAT, VPN, load balancing | ❌ Experimental |
 
 ## 🎯 Real-World Scenarios
 

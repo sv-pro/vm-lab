@@ -12,7 +12,7 @@ TEMPLATES_DIR="${SCRIPT_DIR}/templates"
 MAIN_VAGRANTFILE="${SCRIPT_DIR}/Vagrantfile"
 
 # Predefined VM roles
-PREDEFINED_ROLES=("base" "docker" "k8s" "lxd" "kata" "observer" "router" "pfsense")
+PREDEFINED_ROLES=("base" "docker" "observer")
 
 # Check if a name is a predefined role
 is_predefined_role() {
@@ -220,7 +220,7 @@ case "$1" in
         echo "  status                  - List all VMs"
         echo ""
         echo "Predefined roles: ${PREDEFINED_ROLES[*]}"
-        echo "Predefined VMs: base, docker, k8s, lxd, kata, observer"
+        echo "Predefined VMs: base, docker, observer"
         echo ""
         echo "Examples:"
         echo "  $0 create docker web-server    # Create custom Docker VM"

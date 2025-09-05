@@ -18,13 +18,8 @@ help: ## Show this help message
 	@echo ""
 	@echo "VM Creation:"
 	@echo "  make create-base [NAME=<name>]     - Create base Ubuntu VM"
-	@echo "  make create-lxd [NAME=<name>]      - Create LXD host VM"
 	@echo "  make create-docker [NAME=<name>]   - Create Docker host VM"
-	@echo "  make create-k8s [NAME=<name>]      - Create Kubernetes host VM"
-	@echo "  make create-kata [NAME=<name>]     - Create Kata host VM"
 	@echo "  make create-observer [NAME=<name>] - Create Observer host VM"
-	@echo "  make create-router [NAME=<name>]   - Create Virtual Router VM"
-	@echo "  make create-pfsense [NAME=<name>]  - Create pfSense Firewall VM"
 	@echo ""
 	@echo "VM Management:"
 	@echo "  make list                          - List all VM images and running VMs"
@@ -46,20 +41,13 @@ help: ## Show this help message
 	@echo "  Users: vagrant (Vagrant default), ubuntu (password: ubuntu), dev (password: dev123)"
 
 # VM Creation targets
-.PHONY: create-base create-lxd create-docker create-k8s create-kata create-observer create-router create-pfsense
-.PHONY: base lxd docker k8s kata observer router pfsense
+.PHONY: create-base create-docker create-observer
+.PHONY: base docker observer
 create-base: ## Create base Ubuntu VM
 ifdef NAME
 	$(call vm_vagrant,create base $(NAME))
 else
 	$(call vm_vagrant,up base)
-endif
-
-create-lxd: ## Create LXD host VM
-ifdef NAME
-	$(call vm_vagrant,create lxd $(NAME))
-else
-	$(call vm_vagrant,up lxd)
 endif
 
 create-docker: ## Create Docker host VM
@@ -69,39 +57,11 @@ else
 	$(call vm_vagrant,up docker)
 endif
 
-create-k8s: ## Create Kubernetes host VM
-ifdef NAME
-	$(call vm_vagrant,create k8s $(NAME))
-else
-	$(call vm_vagrant,up k8s)
-endif
-
-create-kata: ## Create Kata host VM
-ifdef NAME
-	$(call vm_vagrant,create kata $(NAME))
-else
-	$(call vm_vagrant,up kata)
-endif
-
 create-observer: ## Create Observer host VM
 ifdef NAME
 	$(call vm_vagrant,create observer $(NAME))
 else
 	$(call vm_vagrant,up observer)
-endif
-
-create-router: ## Create Virtual Router VM
-ifdef NAME
-	$(call vm_vagrant,create router $(NAME))
-else
-	$(call vm_vagrant,up router)
-endif
-
-create-pfsense: ## Create pfSense Firewall VM
-ifdef NAME
-	$(call vm_vagrant,create pfsense $(NAME))
-else
-	$(call vm_vagrant,up pfsense)
 endif
 
 # VM Management targets  
@@ -176,10 +136,5 @@ web-vm: ## Create and start a web server VM
 
 # Clean aliases (without create- prefix)
 base: create-base        ## Alias for create-base
-lxd: create-lxd          ## Alias for create-lxd  
 docker: create-docker    ## Alias for create-docker
-k8s: create-k8s          ## Alias for create-k8s
-kata: create-kata        ## Alias for create-kata
 observer: create-observer ## Alias for create-observer
-router: create-router    ## Alias for create-router
-pfsense: create-pfsense  ## Alias for create-pfsense

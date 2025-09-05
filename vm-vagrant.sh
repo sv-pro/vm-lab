@@ -12,7 +12,7 @@ TEMPLATES_DIR="${SCRIPT_DIR}/templates"
 MAIN_VAGRANTFILE="${SCRIPT_DIR}/Vagrantfile"
 
 # Predefined VM roles
-PREDEFINED_ROLES=("base" "docker" "k8s" "lxd" "kata" "observer")
+PREDEFINED_ROLES=("base" "docker" "k8s" "lxd" "kata" "observer" "router" "pfsense")
 
 # Check if a name is a predefined role
 is_predefined_role() {
@@ -191,12 +191,12 @@ case "$1" in
             echo "Usage: $0 $1 <vm-name>"
             exit 1
         fi
-        local vm_name="$2"
+        vm_name="$2"
         run_vagrant_command "$vm_name" destroy -f
         
         # Clean up custom VM directory
         if ! is_predefined_role "$vm_name" && ! is_default_role_name "$vm_name"; then
-            local vm_dir="${VMS_DIR}/${vm_name}"
+            vm_dir="${VMS_DIR}/${vm_name}"
             if [[ -d "$vm_dir" ]]; then
                 echo "Cleaning up custom VM directory: $vm_dir"
                 rm -rf "$vm_dir"

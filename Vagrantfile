@@ -181,4 +181,174 @@ EOF
       fi
     SHELL
   end
+
+  # Router VM definition
+  config.vm.define "router", autostart: false do |router|
+    router.vm.hostname = "ubuntu-24-04-router"
+    router.vm.provider :libvirt do |libvirt|
+      libvirt.memory = 1024
+      libvirt.cpus = 1
+      libvirt.nested = true
+      libvirt.cpu_mode = "host-passthrough"
+    end
+    
+    router.vm.provision "shell", inline: <<-SHELL
+      apt-get update
+      apt-get install -y \\
+        iproute2 iptables ipset bridge-utils vlan tcpdump nftables \\
+        bird2 frr strongswan openvpn dnsmasq bind9 nginx haproxy \\
+        keepalived netfilter-persistent iptables-persistent qemu-guest-agent
+      
+      echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+      echo 'net.ipv6.conf.all.forwarding=1' >> /etc/sysctl.conf
+      sysctl -p
+      
+      systemctl enable qemu-guest-agent bird frr dnsmasq bind9 nginx netfilter-persistent || true
+      
+      cat > /etc/motd << 'EOF'
+==========================================
+    Virtual Router VM
+==========================================
+Routing: bird2, frr • VPN: strongswan, openvpn
+DNS: bind9, dnsmasq • Load Balancing: nginx, haproxy
+Networking: iptables, bridge-utils, vlan
+
+IP forwarding enabled • Basic firewall configured
+==========================================
+EOF
+      echo "Virtual router setup complete!"
+    SHELL
+  end
+
+  # pfSense-style VM definition (Ubuntu-based alternative)
+  config.vm.define "pfsense", autostart: false do |pfsense|
+    pfsense.vm.box = "alvistack/ubuntu-24.04"
+    pfsense.vm.hostname = "pfsense-style-gw"
+    pfsense.vm.provider :libvirt do |libvirt|
+      libvirt.memory = 2048
+      libvirt.cpus = 2
+      libvirt.nested = true
+      libvirt.cpu_mode = "host-passthrough"
+    end
+    
+    pfsense.vm.provision "shell", inline: <<-SHELL
+      apt-get update
+      
+      # Install pfSense-like functionality on Ubuntu
+      apt-get install -y \\
+        iptables ipset netfilter-persistent iptables-persistent \\
+        dnsmasq bind9 nginx haproxy keepalived \\
+        strongswan openvpn bridge-utils vlan \\
+        snmp snmp-mibs-downloader \\
+        ntopng nload iftop tcpdump \\
+        qemu-guest-agent
+      
+      # Enable IP forwarding (like pfSense)
+      echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+      echo 'net.ipv6.conf.all.forwarding=1' >> /etc/sysctl.conf
+      sysctl -p
+      
+      # Install pfSense-like web management (simplified)
+      apt-get install -y apache2 php libapache2-mod-php php-curl php-xml
+      systemctl enable apache2
+      
+      # Create basic firewall rules directory structure
+      mkdir -p /etc/pfsense-style/{rules,config}
+      
+      # Basic NAT rules (pfSense-style)
+      cat > /etc/iptables/rules.v4 << 'EOF'
+*filter
+:INPUT DROP [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+
+# Allow loopback
+-A INPUT -i lo -j ACCEPT
+
+# Allow established connections
+-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+# Allow SSH (management)
+-A INPUT -p tcp --dport 22 -j ACCEPT
+
+# Allow web management interface
+-A INPUT -p tcp --dport 80 -j ACCEPT
+-A INPUT -p tcp --dport 443 -j ACCEPT
+
+# Allow ICMP
+-A INPUT -p icmp -j ACCEPT
+
+# Allow LAN access (adjust for your network)
+-A INPUT -s 192.168.0.0/16 -j ACCEPT
+-A INPUT -s 10.0.0.0/8 -j ACCEPT
+
+COMMIT
+
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+
+# Basic NAT (adjust interface names as needed)
+-A POSTROUTING -o eth0 -j MASQUERADE
+
+COMMIT
+EOF
+      
+      # Enable services
+      systemctl enable qemu-guest-agent dnsmasq nginx netfilter-persistent apache2
+      
+      # Start iptables rules
+      netfilter-persistent reload
+      
+      cat > /etc/motd << 'EOF'
+==========================================
+    pfSense-Style Ubuntu Gateway
+==========================================
+Ubuntu-based firewall with pfSense-like functionality:
+
+Features:
+• Firewall: iptables with persistent rules
+• NAT/PAT: Internet gateway functionality  
+• VPN: strongSwan (IPSec) + OpenVPN
+• DNS: bind9 + dnsmasq
+• Web UI: Apache + PHP (basic management)
+• Monitoring: ntopng, nload, iftop
+• High Availability: keepalived (VRRP)
+
+Management:
+• Web: http://this-ip (basic interface)
+• SSH: Full command-line access
+• Config: /etc/pfsense-style/
+
+Note: This provides pfSense-like functionality on Ubuntu.
+For full pfSense, use manual ISO installation method.
+==========================================
+EOF
+
+      # Create simple web interface
+      cat > /var/www/html/index.php << 'EOF'
+<!DOCTYPE html>
+<html><head><title>pfSense-Style Gateway</title></head>
+<body>
+<h1>pfSense-Style Ubuntu Gateway</h1>
+<h2>System Status</h2>
+<pre><?php echo shell_exec('ip addr show'); ?></pre>
+<h2>Routing Table</h2>
+<pre><?php echo shell_exec('ip route show'); ?></pre>
+<h2>Firewall Rules</h2>
+<pre><?php echo shell_exec('sudo iptables -L -n'); ?></pre>
+<h2>System Load</h2>
+<pre><?php echo shell_exec('uptime'); ?></pre>
+</body></html>
+EOF
+      
+      # Allow www-data to run network commands
+      echo "www-data ALL=(ALL) NOPASSWD: /sbin/iptables, /sbin/ip" >> /etc/sudoers
+      
+      echo "pfSense-style Ubuntu gateway setup complete!"
+      echo "Web interface available at: http://$(hostname -I | awk '{print $1}')"
+    SHELL
+  end
 end

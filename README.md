@@ -12,22 +12,57 @@ VM Lab is a comprehensive virtualization platform that lets you craft complete n
 
 ### 🎯 **Simple Commands, Professional Results**
 ```bash
-make docker NAME=web-app      # "I'm making a Docker host"
-make router NAME=gateway      # "I'm making an enterprise router"
-make pfsense NAME=firewall    # "I'm making a pfSense firewall"
-make k8s NAME=cluster         # "I'm making a Kubernetes cluster"
-make observer NAME=monitor    # "I'm making a monitoring system"
+make base NAME=dev-env        # "I'm making a clean Ubuntu development environment"
+make docker NAME=web-app      # "I'm making a Docker container host"
+make observer NAME=monitor    # "I'm making a monitoring and analysis system"
 ```
 
 ### 🏗️ **Digital Craftsmanship**
 Each command feels like **building** infrastructure, not just running scripts. You're crafting your own data center, piece by piece.
 
-### 🌟 **Enterprise-Grade Tools**
-- **Routing**: FRRouting (BGP, OSPF, ISIS) - same as Cisco/Juniper
-- **Monitoring**: eBPF, Prometheus, Grafana - production observability
-- **Containers**: Docker, Kubernetes - modern application platforms  
-- **Security**: Firewall rules, VPN tunnels, network segmentation
-- **Storage**: LXD, Kata containers - multiple virtualization approaches
+### 🌟 **Production-Ready Tools**
+- **Base Systems**: Clean Ubuntu 24.04 LTS with development tools
+- **Containers**: Docker 27.5+ with docker-compose for modern applications
+- **Monitoring**: eBPF tools (bpftrace), system monitoring (htop) for deep observability
+- **Multi-User**: Pre-configured vagrant, ubuntu, and dev users with SSH access
+
+## 🚧 Current Development Status
+
+### ✅ **Fully Functional (Ready for Production)**
+| Role | Description | Status |
+|------|-------------|---------|
+| **base** | Clean Ubuntu 24.04 with development tools | ✅ Production Ready |
+| **docker** | Docker host with container orchestration | ✅ Production Ready |
+| **observer** | System monitoring with eBPF capabilities | ✅ Production Ready |
+
+### 🔧 **Under Development (Known Issues)**
+| Role | Description | Status | Issue |
+|------|-------------|---------|--------|
+| **k8s** | Kubernetes cluster with MicroK8s | ⚠️ Provisioning Issues | Snap package installation failing |
+| **lxd** | LXD container platform | ⚠️ Provisioning Issues | Snap installation timeout |
+| **kata** | Secure container runtime | ❌ Not Working | VM creation timeout |
+| **router** | Virtual networking router | ❌ Not Working | Complex provisioning timeout |  
+| **pfsense** | Ubuntu-based firewall | ❌ Not Working | Heavy provisioning load |
+
+### 🛣️ **Roadmap**
+
+**Phase 1: Stabilize Core Functionality** *(Current Priority)*
+- [ ] Fix snap package installation for k8s and lxd roles
+- [ ] Optimize provisioning timeouts for complex VMs
+- [ ] Add resource management to prevent concurrent provisioning conflicts
+- [ ] Implement provisioning retry logic and error handling
+
+**Phase 2: Enhanced Reliability**
+- [ ] Split complex provisioning into multiple stages
+- [ ] Add provisioning progress indicators and logging
+- [ ] Implement VM health checks and validation
+- [ ] Create minimal "quick start" variants of complex roles
+
+**Phase 3: Advanced Features**
+- [ ] Custom VM templates and cloning
+- [ ] Multi-VM environment orchestration
+- [ ] Network connectivity testing between VMs
+- [ ] Resource usage monitoring and optimization
 
 ## 🎮 Quick Start: Build Your First Network
 
@@ -46,11 +81,14 @@ cd vm-lab
 
 ### 2. **Create Your Infrastructure**
 ```bash
-# Make a complete network stack
-make router NAME=core-gw          # Enterprise router with BGP/OSPF
-make pfsense NAME=edge-fw         # Web-managed firewall
-make docker NAME=web-cluster      # Container host
-make observer NAME=monitoring     # Network monitoring
+# Start with working VM roles (tested and reliable)
+make base NAME=dev-env            # Clean development environment  
+make docker NAME=web-cluster      # Container host with Docker
+make observer NAME=monitoring     # System monitoring with eBPF tools
+
+# Check VM status
+make status                       # View all VM states
+make ssh NAME=dev-env            # Connect to your VMs
 ```
 
 ### 3. **Connect and Configure**

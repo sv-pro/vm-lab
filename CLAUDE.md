@@ -4,16 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a modern VM management system using Vagrant-libvirt for provisioning Ubuntu 24.04 VMs with different roles:
+This is a modern VM management system using Vagrant-libvirt for provisioning Ubuntu 24.04 VMs. Currently supports 8 different roles with varying stability:
 
-- Base Ubuntu (minimal installation)
-- LXD host (container platform)
-- Docker host (container runtime)
-- Kubernetes host (microk8s cluster)
-- Kata host (secure containers)
-- Observer host (monitoring with eBPF/Prometheus/Grafana)
-- Router (virtual networking)
-- pfSense-style (Ubuntu-based firewall/gateway)
+**✅ Production-Ready Roles (Tested & Working):**
+- Base Ubuntu (clean development environment)
+- Docker host (container runtime with docker-compose)
+- Observer host (monitoring with eBPF tools)
+
+**⚠️ Development Roles (Known Issues):**
+- Kubernetes host (MicroK8s - snap installation issues)
+- LXD host (container platform - snap timeout issues)
+- Kata host (secure containers - VM creation timeout)
+- Router (virtual networking - complex provisioning timeout)
+- pfSense-style (Ubuntu-based firewall - heavy provisioning load)
 
 ## Current Architecture
 
@@ -41,15 +44,17 @@ vm-lab/
 
 **Makefile Interface (Recommended):**
 ```bash
-# VM Creation (predefined roles)
+# ✅ WORKING VM Creation (production-ready)
 make create-base [NAME=<name>]     # Create base Ubuntu VM
-make create-docker [NAME=<name>]   # Create Docker host VM
-make create-k8s [NAME=<name>]      # Create Kubernetes host VM
-make create-lxd [NAME=<name>]      # Create LXD host VM
-make create-kata [NAME=<name>]     # Create Kata host VM
+make create-docker [NAME=<name>]   # Create Docker host VM  
 make create-observer [NAME=<name>] # Create Observer host VM
-make create-router [NAME=<name>]   # Create Virtual Router VM  
-make create-pfsense [NAME=<name>]  # Create pfSense-style VM
+
+# ⚠️ PROBLEMATIC VM Creation (known issues - use with caution)
+make create-k8s [NAME=<name>]      # Create Kubernetes host VM (snap issues)
+make create-lxd [NAME=<name>]      # Create LXD host VM (snap timeout)
+make create-kata [NAME=<name>]     # Create Kata host VM (creation timeout)
+make create-router [NAME=<name>]   # Create Virtual Router VM (provisioning timeout)
+make create-pfsense [NAME=<name>]  # Create pfSense-style VM (heavy provisioning)
 
 # VM Management
 make start NAME=<name>             # Start VM

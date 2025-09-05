@@ -11,7 +11,7 @@ This is a modern VM management system using Vagrant-libvirt for provisioning Ubu
 - Docker host (container runtime with docker-compose)
 - Observer host (monitoring with eBPF tools)
 
-**Note:** Previously included additional roles (k8s, lxd, kata, router, pfsense) but they were removed due to reliability issues. Focus is now on providing 100% working VM roles.
+**Note:** Also includes 5 experimental roles (k8s, lxd, kata, router, pfsense) that are available but hidden from help due to known issues. Use with caution - these are undocumented "advanced user" features.
 
 ## Current Architecture
 
@@ -19,7 +19,7 @@ This is a modern VM management system using Vagrant-libvirt for provisioning Ubu
 
 - Primary provider: libvirt (KVM virtualization)
 - Fallback provider: VirtualBox (when libvirt unavailable)
-- Multi-machine Vagrantfile with 3 predefined VM roles
+- Multi-machine Vagrantfile with 8 predefined VM roles (3 production + 5 experimental)
 - Custom VM support with isolated directories and templates
 - Unified Makefile interface for all operations
 
@@ -27,7 +27,7 @@ This is a modern VM management system using Vagrant-libvirt for provisioning Ubu
 
 ```text
 vm-lab/
-├── Vagrantfile              # Multi-machine VM definitions (3 roles)
+├── Vagrantfile              # Multi-machine VM definitions (3 production + 5 experimental)
 ├── vm-vagrant.sh           # Vagrant wrapper for custom VMs  
 ├── Makefile                # Unified VM management interface
 ├── templates/              # Vagrantfile templates for custom VMs
@@ -39,10 +39,17 @@ vm-lab/
 
 **Makefile Interface (Recommended):**
 ```bash
-# VM Creation (all production-ready and tested)
+# VM Creation (production-ready and tested - shown in help)
 make create-base [NAME=<name>]     # Create base Ubuntu VM
 make create-docker [NAME=<name>]   # Create Docker host VM  
 make create-observer [NAME=<name>] # Create Observer host VM
+
+# Experimental VM Creation (hidden from help - use with caution)
+make create-k8s [NAME=<name>]      # Create Kubernetes host VM (snap issues)
+make create-lxd [NAME=<name>]      # Create LXD host VM (snap timeout)
+make create-kata [NAME=<name>]     # Create Kata host VM (creation timeout)
+make create-router [NAME=<name>]   # Create Virtual Router VM (provisioning timeout)
+make create-pfsense [NAME=<name>]  # Create pfSense-style VM (heavy provisioning)
 
 # VM Management
 make start NAME=<name>             # Start VM
@@ -71,9 +78,18 @@ vagrant destroy docker         # Destroy predefined VM
 ## VM Role Specifications
 
 **Resource Allocation:**
+
+*Production-Ready Roles:*
 - **base**: 1GB RAM, 1 CPU - Minimal Ubuntu installation with development tools
 - **docker**: 2GB RAM, 2 CPU - Docker runtime + docker-compose
 - **observer**: 2GB RAM, 2 CPU - eBPF tools + monitoring stack (htop, bpftrace)
+
+*Experimental Roles (use with caution):*
+- **k8s**: 4GB RAM, 2 CPU - MicroK8s cluster (snap installation issues)
+- **lxd**: 2GB RAM, 2 CPU - LXD + ZFS (snap timeout issues)
+- **kata**: 4GB RAM, 2 CPU - Kata containers + Docker (creation timeout)
+- **router**: 1GB RAM, 1 CPU - Virtual routing (provisioning timeout)
+- **pfsense**: 2GB RAM, 2 CPU - Ubuntu-based firewall (heavy provisioning)
 
 **Network Configuration:**
 - Primary provider: libvirt with `vagrant-libvirt` management network
@@ -86,7 +102,7 @@ vagrant destroy docker         # Destroy predefined VM
 - Vagrant 2.4.9+
 - vagrant-libvirt plugin (primary provider)
 - libvirt/KVM support
-- Sufficient system resources for multiple VMs (4GB+ RAM recommended for all 3 roles)
+- Sufficient system resources for multiple VMs (4GB+ RAM for production roles, 8GB+ if using experimental roles)
 
 **Optional Fallback:**
 - VirtualBox (when libvirt unavailable)

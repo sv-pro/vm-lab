@@ -35,14 +35,15 @@ Each command feels like **building** infrastructure, not just running scripts. Y
 | **docker** | Docker host with container orchestration | ✅ Production Ready |
 | **observer** | System monitoring with eBPF capabilities | ✅ Production Ready |
 
-### 🔧 **Under Development (Known Issues)**
-| Role | Description | Status | Issue |
+### 🧪 **Experimental Roles (Available but Hidden)**
+*Advanced users can access these via direct commands (not shown in `make help`):*
+| Role | Description | Status | Access |
 |------|-------------|---------|--------|
-| **k8s** | Kubernetes cluster with MicroK8s | ⚠️ Provisioning Issues | Snap package installation failing |
-| **lxd** | LXD container platform | ⚠️ Provisioning Issues | Snap installation timeout |
-| **kata** | Secure container runtime | ❌ Not Working | VM creation timeout |
-| **router** | Virtual networking router | ❌ Not Working | Complex provisioning timeout |  
-| **pfsense** | Ubuntu-based firewall | ❌ Not Working | Heavy provisioning load |
+| **k8s** | Kubernetes cluster with MicroK8s | ⚠️ Provisioning Issues | `make create-k8s` |
+| **lxd** | LXD container platform | ⚠️ Provisioning Issues | `make create-lxd` |
+| **kata** | Secure container runtime | ❌ Creation Issues | `make create-kata` |
+| **router** | Virtual networking router | ❌ Provisioning Timeout | `make create-router` |  
+| **pfsense** | Ubuntu-based firewall | ❌ Heavy Provisioning | `make create-pfsense` |
 
 ### 🛣️ **Roadmap**
 

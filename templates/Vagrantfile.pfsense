@@ -1,0 +1,95 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# Template for pfSense Firewall/Router VMs with custom names
+
+Vagrant.configure("2") do |config|
+  # pfSense requires a special box - using FreeBSD as base
+  config.vm.box = "freebsd/FreeBSD-14.1-RELEASE"
+  config.vm.hostname = "VM_NAME_PLACEHOLDER"
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  
+  # Configure libvirt provider for pfSense
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.driver = "kvm"
+    libvirt.memory = 2048
+    libvirt.cpus = 2
+    libvirt.graphics_type = "none"
+    libvirt.management_network_name = "vagrant-libvirt"
+    libvirt.management_network_address = "192.168.121.0/24"
+    
+    # pfSense needs specific settings
+    libvirt.nested = true
+    libvirt.cpu_mode = "host-passthrough"
+    libvirt.machine_type = "q35"
+    
+    # Add additional network interfaces for WAN/LAN
+    libvirt.management_network_name = "vagrant-libvirt-mgmt"
+    libvirt.management_network_address = "192.168.122.0/24"
+  end
+
+  # SSH configuration for FreeBSD
+  config.ssh.insert_key = false
+  config.ssh.private_key_path = ["../../packer/cloud-init/id_rsa", "~/.vagrant.d/insecure_private_key"]
+  config.ssh.shell = "sh"
+  
+  # File provisioning for SSH key
+  config.vm.provision "file", source: "../../packer/cloud-init/id_rsa.pub", destination: "/tmp/vagrant-pubkey"
+  
+  # Basic FreeBSD setup for pfSense preparation
+  config.vm.provision "shell", inline: <<-SHELL
+    # FreeBSD basic setup
+    pkg update -f
+    pkg install -y curl wget bash nano
+    
+    # Setup SSH keys
+    mkdir -p /home/vagrant/.ssh
+    cat /tmp/vagrant-pubkey >> /home/vagrant/.ssh/authorized_keys
+    chown -R vagrant:vagrant /home/vagrant/.ssh
+    chmod 700 /home/vagrant/.ssh
+    chmod 600 /home/vagrant/.ssh/authorized_keys
+    
+    # Create dev user for compatibility
+    pw useradd dev -m -G wheel -s /usr/local/bin/bash
+    echo 'dev123' | pw mod user dev -h 0
+    mkdir -p /home/dev/.ssh
+    cat /tmp/vagrant-pubkey >> /home/dev/.ssh/authorized_keys
+    chown -R dev:dev /home/dev/.ssh
+    chmod 700 /home/dev/.ssh
+    chmod 600 /home/dev/.ssh/authorized_keys
+    
+    rm /tmp/vagrant-pubkey
+    
+    # Enable services
+    sysrc sshd_enable="YES"
+    sysrc gateway_enable="YES"
+    
+    cat > /etc/motd << 'EOF'
+==========================================
+    pfSense-Ready FreeBSD VM
+==========================================
+This VM is prepared for pfSense installation.
+
+To install pfSense:
+1. Download pfSense ISO
+2. Mount and boot from ISO
+3. Follow pfSense installation wizard
+
+Current configuration:
+- FreeBSD 14.1 base system
+- SSH access enabled
+- Multiple network interfaces
+- Virtualization-optimized
+
+Network interfaces:
+- Management: DHCP (vagrant)
+- Additional interfaces available for WAN/LAN
+
+Access:
+- SSH: vagrant@<ip>, dev@<ip>
+- Console: Available via libvirt
+==========================================
+EOF
+
+    echo "FreeBSD VM ready for pfSense installation!"
+  SHELL
+end

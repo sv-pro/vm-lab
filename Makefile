@@ -40,9 +40,13 @@ help: ## Show this help message
 	@echo "  SSH: Standard Vagrant keys (~/.vagrant.d/insecure_private_key)"
 	@echo "  Users: vagrant (Vagrant default), ubuntu (password: ubuntu), dev (password: dev123)"
 
-# VM Creation targets
+# VM Creation targets (production-ready - shown in help)
 .PHONY: create-base create-docker create-observer
 .PHONY: base docker observer
+
+# Experimental VM Creation targets (hidden from help - use with caution)
+.PHONY: create-k8s create-lxd create-kata create-router create-pfsense
+.PHONY: k8s lxd kata router pfsense
 create-base: ## Create base Ubuntu VM
 ifdef NAME
 	$(call vm_vagrant,create base $(NAME))
@@ -62,6 +66,42 @@ ifdef NAME
 	$(call vm_vagrant,create observer $(NAME))
 else
 	$(call vm_vagrant,up observer)
+endif
+
+# Experimental VM Creation targets (hidden - no ## comments)
+create-k8s:
+ifdef NAME
+	$(call vm_vagrant,create k8s $(NAME))
+else
+	$(call vm_vagrant,up k8s)
+endif
+
+create-lxd:
+ifdef NAME
+	$(call vm_vagrant,create lxd $(NAME))
+else
+	$(call vm_vagrant,up lxd)
+endif
+
+create-kata:
+ifdef NAME
+	$(call vm_vagrant,create kata $(NAME))
+else
+	$(call vm_vagrant,up kata)
+endif
+
+create-router:
+ifdef NAME
+	$(call vm_vagrant,create router $(NAME))
+else
+	$(call vm_vagrant,up router)
+endif
+
+create-pfsense:
+ifdef NAME
+	$(call vm_vagrant,create pfsense $(NAME))
+else
+	$(call vm_vagrant,up pfsense)
 endif
 
 # VM Management targets  
@@ -134,7 +174,14 @@ web-vm: ## Create and start a web server VM
 	$(call vm_vagrant,up docker)
 	@echo "Web server VM ready. Connect with: make ssh NAME=docker"
 
-# Clean aliases (without create- prefix)
+# Clean aliases (without create- prefix) - production-ready
 base: create-base        ## Alias for create-base
 docker: create-docker    ## Alias for create-docker
 observer: create-observer ## Alias for create-observer
+
+# Clean aliases for experimental roles (hidden)
+k8s: create-k8s
+lxd: create-lxd  
+kata: create-kata
+router: create-router
+pfsense: create-pfsense

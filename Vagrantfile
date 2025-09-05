@@ -6,7 +6,7 @@ Vagrant.configure("2") do |config|
   config.vm.box = "alvistack/ubuntu-24.04"
   config.vm.synced_folder ".", "/vagrant", disabled: true
   
-  # Configure libvirt provider
+  # Configure libvirt provider (primary)
   config.vm.provider :libvirt do |libvirt|
     libvirt.driver = "kvm"
     libvirt.memory = 2048
@@ -16,35 +16,43 @@ Vagrant.configure("2") do |config|
     libvirt.management_network_address = "192.168.121.0/24"
   end
 
+  # Configure VirtualBox provider (fallback)
+  config.vm.provider :virtualbox do |vb|
+    vb.memory = 2048
+    vb.cpus = 2
+    vb.gui = false
+    vb.linked_clone = true
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+  end
+
   # SSH key configuration
   config.ssh.insert_key = false
-  config.ssh.private_key_path = ["packer/cloud-init/id_rsa", "~/.vagrant.d/insecure_private_key"]
-  config.vm.provision "file", source: "packer/cloud-init/id_rsa.pub", destination: "/tmp/vagrant-pubkey"
+  config.ssh.private_key_path = ["~/.vagrant.d/insecure_private_key"]
+  
+  # Common user setup for all VMs
   config.vm.provision "shell", inline: <<-SHELL
-    mkdir -p /home/vagrant/.ssh
-    cat /tmp/vagrant-pubkey >> /home/vagrant/.ssh/authorized_keys
-    chown -R vagrant:vagrant /home/vagrant/.ssh
-    chmod 700 /home/vagrant/.ssh
-    chmod 600 /home/vagrant/.ssh/authorized_keys
+    # Create dev user with sudo access
+    useradd -m -s /bin/bash dev
+    echo "dev:dev123" | chpasswd
+    usermod -aG sudo dev
     
-    # Also add to ubuntu user
+    # Set password for ubuntu user for compatibility
+    echo "ubuntu:ubuntu" | chpasswd
+    
+    # Configure SSH access for ubuntu user
     mkdir -p /home/ubuntu/.ssh
-    cat /tmp/vagrant-pubkey >> /home/ubuntu/.ssh/authorized_keys
+    cp /home/vagrant/.ssh/authorized_keys /home/ubuntu/.ssh/authorized_keys
     chown -R ubuntu:ubuntu /home/ubuntu/.ssh
     chmod 700 /home/ubuntu/.ssh  
     chmod 600 /home/ubuntu/.ssh/authorized_keys
     
-    # Create dev user
-    useradd -m -s /bin/bash dev
-    echo "dev:dev123" | chpasswd
-    usermod -aG sudo dev
+    # Configure SSH access for dev user  
     mkdir -p /home/dev/.ssh
-    cat /tmp/vagrant-pubkey >> /home/dev/.ssh/authorized_keys
+    cp /home/vagrant/.ssh/authorized_keys /home/dev/.ssh/authorized_keys
     chown -R dev:dev /home/dev/.ssh
     chmod 700 /home/dev/.ssh
     chmod 600 /home/dev/.ssh/authorized_keys
-    
-    rm /tmp/vagrant-pubkey
   SHELL
 
   # Base VM definition

@@ -42,8 +42,8 @@ help: ## Show this help message
 	@echo "  make delete NAME=old-vm"
 	@echo ""
 	@echo "Authentication:"
-	@echo "  SSH Key: packer/cloud-init/id_rsa"
-	@echo "  Users: ubuntu (password: ubuntu), dev (password: dev123)"
+	@echo "  SSH: Standard Vagrant keys (~/.vagrant.d/insecure_private_key)"
+	@echo "  Users: vagrant (Vagrant default), ubuntu (password: ubuntu), dev (password: dev123)"
 
 # VM Creation targets
 .PHONY: create-base create-lxd create-docker create-k8s create-kata create-observer create-router create-pfsense

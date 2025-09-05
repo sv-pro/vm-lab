@@ -4,78 +4,102 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a VM management project transitioning from custom QEMU/Packer-based image building to Vagrant-based VM provisioning for Ubuntu 24.04 VMs with different roles:
-- LXD host
-- Docker host 
-- Kubernetes host
-- Kata host
-- Observer host (monitoring/experiments with eBPF/Prometheus/Grafana)
+This is a modern VM management system using Vagrant-libvirt for provisioning Ubuntu 24.04 VMs with different roles:
 
-## Architecture Transition
+- Base Ubuntu (minimal installation)
+- LXD host (container platform)
+- Docker host (container runtime)
+- Kubernetes host (microk8s cluster)
+- Kata host (secure containers)
+- Observer host (monitoring with eBPF/Prometheus/Grafana)
+- Router (virtual networking)
+- pfSense-style (Ubuntu-based firewall/gateway)
 
-**Previous Approach (QEMU/Packer):**
-- Custom vm-manage.sh script for VM lifecycle management
-- Packer templates for building role-specific qcow2 images
-- Manual image building and VM provisioning
+## Current Architecture
 
-**Current Approach (Vagrant):**
-- Vagrant for VM provisioning and lifecycle management
-- Multi-machine Vagrantfile supporting all VM roles
-- Declarative VM configuration with automatic provisioning
-- Provider flexibility (VirtualBox, libvirt, etc.)
+**Vagrant-libvirt Based System:**
 
-## Current Project Structure
+- Primary provider: libvirt (KVM virtualization)
+- Fallback provider: VirtualBox (when libvirt unavailable)
+- Multi-machine Vagrantfile with 8 predefined VM roles
+- Custom VM support with isolated directories and templates
+- Unified Makefile interface for all operations
 
-```
+## Project Structure
+
+```text
 vm-lab/
-├── Vagrantfile              # Multi-machine VM definitions
-├── packer/                  # Legacy Packer configs (may be removed)
-├── output/                  # VM artifacts and images
-├── vm-manage.sh            # Legacy VM management script
-└── Makefile                # Build automation
+├── Vagrantfile              # Multi-machine VM definitions (8 roles)
+├── vm-vagrant.sh           # Vagrant wrapper for custom VMs  
+├── Makefile                # Unified VM management interface
+├── templates/              # Vagrantfile templates for custom VMs
+├── vms/                    # Isolated custom VM directories
+└── README.md               # Project documentation
 ```
 
-## Vagrant Commands
+## VM Management Commands
 
-Basic VM operations:
+**Makefile Interface (Recommended):**
 ```bash
-# Start all VMs
-vagrant up
+# VM Creation (predefined roles)
+make create-base [NAME=<name>]     # Create base Ubuntu VM
+make create-docker [NAME=<name>]   # Create Docker host VM
+make create-k8s [NAME=<name>]      # Create Kubernetes host VM
+make create-lxd [NAME=<name>]      # Create LXD host VM
+make create-kata [NAME=<name>]     # Create Kata host VM
+make create-observer [NAME=<name>] # Create Observer host VM
+make create-router [NAME=<name>]   # Create Virtual Router VM  
+make create-pfsense [NAME=<name>]  # Create pfSense-style VM
 
-# Start specific VM role
-vagrant up docker
-vagrant up k8s
-vagrant up lxd
-vagrant up kata
-vagrant up observer
-
-# SSH into VMs
-vagrant ssh docker
-vagrant ssh k8s
-
-# Stop VMs
-vagrant halt
-vagrant halt docker
-
-# Destroy VMs
-vagrant destroy
-vagrant destroy docker
-
-# Check VM status
-vagrant status
+# VM Management
+make start NAME=<name>             # Start VM
+make stop NAME=<name>              # Stop VM
+make ssh NAME=<name>               # SSH into VM
+make delete NAME=<name>            # Delete VM
+make status                        # Check all VM status
+make list                          # List all VMs
 ```
 
-## VM Role Configurations
+**Direct Vagrant Commands:**
+```bash
+# Predefined VMs (from main Vagrantfile)
+vagrant up docker              # Start predefined docker VM
+vagrant ssh docker             # SSH to predefined VM
+vagrant halt docker            # Stop predefined VM
+vagrant destroy docker         # Destroy predefined VM
 
-Each VM role should be configured in the Vagrantfile with:
-- Role-specific provisioning scripts
-- Appropriate resource allocation (CPU, memory, disk)
-- Network configuration
-- Port forwarding as needed
-- Role-specific package installation
+# Custom VMs (created via templates)
+./vm-vagrant.sh create docker web-server   # Create custom VM
+./vm-vagrant.sh up web-server              # Start custom VM
+./vm-vagrant.sh ssh web-server             # SSH to custom VM
+./vm-vagrant.sh destroy web-server         # Destroy custom VM
+```
+
+## VM Role Specifications
+
+**Resource Allocation:**
+- **base**: 1GB RAM, 1 CPU - Minimal Ubuntu installation
+- **docker**: 2GB RAM, 2 CPU - Docker runtime + docker-compose
+- **k8s**: 4GB RAM, 2 CPU - MicroK8s cluster ready
+- **lxd**: 2GB RAM, 2 CPU - LXD + ZFS + monitoring
+- **kata**: 4GB RAM, 2 CPU - Kata containers + Docker
+- **observer**: 2GB RAM, 2 CPU - eBPF tools + monitoring stack
+- **router**: 1GB RAM, 1 CPU - Virtual routing (Bird2, FRR, etc.)
+- **pfsense**: 2GB RAM, 2 CPU - Ubuntu-based firewall/gateway
+
+**Network Configuration:**
+- Primary provider: libvirt with `vagrant-libvirt` management network
+- Network range: `192.168.121.0/24` (default vagrant-libvirt)
+- SSH access: Direct IP assignment via libvirt DHCP
 
 ## Dependencies
 
-- Vagrant 2.4.9+ 
-- VirtualBox or libvirt provider
-- Sufficient system resources for multiple VMs
+**Required:**
+- Vagrant 2.4.9+
+- vagrant-libvirt plugin (primary provider)
+- libvirt/KVM support
+- Sufficient system resources for multiple VMs (8GB+ RAM recommended)
+
+**Optional Fallback:**
+- VirtualBox (when libvirt unavailable)
+- vagrant-vbguest plugin (for VirtualBox)

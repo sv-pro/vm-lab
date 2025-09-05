@@ -1,0 +1,19 @@
+#!/usr/bin/env bpftrace
+
+// Super simple DNS monitoring - just count DNS-sized packets
+BEGIN { printf("🔍 Monitoring DNS-like traffic (packet size 20-512 bytes)\n"); }
+
+// Monitor network packets that look like DNS queries
+tracepoint:net:net_dev_xmit
+{
+    if (args->len > 20 && args->len < 512) {
+        printf("📤 Outbound: %s sent %d bytes\n", comm, args->len);
+    }
+}
+
+tracepoint:net:netif_receive_skb  
+{
+    if (args->len > 20 && args->len < 512) {
+        printf("📥 Inbound: received %d bytes\n", args->len);
+    }
+}

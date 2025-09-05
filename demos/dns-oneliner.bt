@@ -1,0 +1,7 @@
+#!/usr/bin/env bpftrace
+// Ultra-simple DNS monitoring using tracepoints (more reliable than kprobes)
+tracepoint:syscalls:sys_enter_sendto /args->fd && args->len > 0/ { 
+    if (args->len > 12 && args->len < 512) { 
+        printf("🔍 DNS? PID %d (%s) sent %d bytes\n", pid, comm, args->len); 
+    } 
+}

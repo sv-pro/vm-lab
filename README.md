@@ -122,6 +122,28 @@ make status
 | **🌐 Router** | `make router` | Network Routing | FRRouting, BGP, OSPF, VPN | ❌ Experimental |
 | **🛡️ pfSense** | `make pfsense` | Firewall/Gateway | Web GUI, NAT, VPN, load balancing | ❌ Experimental |
 
+### 🌐 **Hybrid Networking (VM + Container Communication)**
+
+| VM Type | Command | Purpose | Key Features | Status |
+|---------|---------|---------|--------------|---------|
+| **🔗 Hybrid Base** | `make hybrid-base` | VM + Container Network | Ubuntu VM on shared bridge (10.0.1.x) | ✅ Production |
+| **🔗 Hybrid Docker** | `make hybrid-docker` | Container Host + Network | Docker VM + container networking | ✅ Production |
+
+**Hybrid Network Commands:**
+```bash
+make create-hybrid-network              # Create shared bridge (10.0.1.0/24)
+make hybrid-base NAME=my-vm            # Create VM with container communication
+make hybrid-docker NAME=docker-vm      # Create Docker VM with hybrid networking
+make hybrid-status                     # Show network status and connections
+docker run --network hybrid-net nginx  # Run container on shared network
+```
+
+**Use Cases:**
+- **Microservices + Database VMs**: Containers calling VM-hosted databases
+- **Legacy Integration**: Modern containers + legacy VM applications  
+- **Development Environments**: Local containers + VM services
+- **Mixed Architectures**: Best of both worlds - containers and VMs
+
 ## 🎯 Real-World Scenarios
 
 ### 🏢 **Enterprise Network Simulation**

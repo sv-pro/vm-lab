@@ -12,7 +12,7 @@ TEMPLATES_DIR="${SCRIPT_DIR}/templates"
 MAIN_VAGRANTFILE="${SCRIPT_DIR}/Vagrantfile"
 
 # Predefined VM roles
-PREDEFINED_ROLES=("base" "docker" "observer" "k8s" "lxd" "kata" "router" "pfsense")
+PREDEFINED_ROLES=("base" "docker" "observer" "k8s" "lxd" "kata" "router" "pfsense" "hybrid-base" "hybrid-docker")
 
 # Check if a name is a predefined role
 is_predefined_role() {
@@ -59,6 +59,53 @@ get_role_from_name() {
     return 1
 }
 
+# Generate unique IP address for hybrid networking
+generate_hybrid_ip() {
+    local vm_name="$1"
+    local base_ip="10.0.1"
+    local ip_file="${VMS_DIR}/.hybrid-ips"
+    
+    # Create IP tracking file if it doesn't exist
+    mkdir -p "$VMS_DIR"
+    touch "$ip_file"
+    
+    # Check if this VM already has an IP assigned
+    if [[ -f "$ip_file" ]]; then
+        local existing_ip=$(grep "^$vm_name=" "$ip_file" | cut -d= -f2)
+        if [[ -n "$existing_ip" ]]; then
+            echo "$existing_ip"
+            return 0
+        fi
+    fi
+    
+    # Find next available IP (starting from 10.0.1.10, avoiding gateway at .1 and Docker range .100-199)
+    local used_ips=$(cat "$ip_file" 2>/dev/null | cut -d= -f2 | cut -d. -f4 | sort -n)
+    local next_ip=10
+    
+    for used in $used_ips; do
+        if [[ $used -ge 10 && $used -lt 100 && $used -eq $next_ip ]]; then
+            ((next_ip++))
+        fi
+    done
+    
+    # Skip Docker container range (100-199) and go to VM range (200+)
+    if [[ $next_ip -ge 100 ]]; then
+        next_ip=200
+        for used in $used_ips; do
+            if [[ $used -ge 200 && $used -eq $next_ip ]]; then
+                ((next_ip++))
+            fi
+        done
+    fi
+    
+    local assigned_ip="${base_ip}.${next_ip}"
+    
+    # Record the assignment
+    echo "${vm_name}=${assigned_ip}" >> "$ip_file"
+    
+    echo "$assigned_ip"
+}
+
 # Create isolated VM directory with Vagrantfile
 create_custom_vm() {
     local vm_name="$1"
@@ -78,7 +125,16 @@ create_custom_vm() {
     fi
     
     # Copy and customize Vagrantfile
-    sed "s/VM_NAME_PLACEHOLDER/$vm_name/g" "$template_file" > "${vm_dir}/Vagrantfile"
+    if [[ "$role" == "hybrid-base" || "$role" == "hybrid-docker" ]]; then
+        # Generate unique IP for hybrid networking (10.0.1.x)
+        local hybrid_ip=$(generate_hybrid_ip "$vm_name")
+        sed -e "s/VM_NAME_PLACEHOLDER/$vm_name/g" \
+            -e "s/HYBRID_IP_PLACEHOLDER/$hybrid_ip/g" \
+            "$template_file" > "${vm_dir}/Vagrantfile"
+        echo "Assigned hybrid network IP: $hybrid_ip"
+    else
+        sed "s/VM_NAME_PLACEHOLDER/$vm_name/g" "$template_file" > "${vm_dir}/Vagrantfile"
+    fi
     
     echo "Custom VM '$vm_name' workspace created at: $vm_dir"
 }

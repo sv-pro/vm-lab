@@ -1,0 +1,186 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# Template for Hybrid Docker VMs with VM+Container networking capability
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "alvistack/ubuntu-24.04"
+  config.vm.hostname = "VM_NAME_PLACEHOLDER"
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  
+  # Configure libvirt provider with hybrid networking
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.driver = "kvm"
+    libvirt.memory = 2048
+    libvirt.cpus = 2
+    libvirt.graphics_type = "none"
+    
+    # Primary interface: management network (SSH access)
+    libvirt.management_network_name = "vagrant-libvirt"
+    libvirt.management_network_address = "192.168.121.0/24"
+  end
+
+  # Add hybrid network interface
+  config.vm.network :private_network, 
+    :libvirt__network_name => "hybrid-network",
+    :libvirt__dhcp_enabled => false,
+    :ip => "HYBRID_IP_PLACEHOLDER"
+
+  # SSH key configuration (using standard vagrant keys)
+  config.vm.provision "shell", inline: <<-SHELL
+    # Create dev user for consistency with other VMs
+    useradd -m -s /bin/bash dev
+    echo "dev:dev123" | chpasswd
+    usermod -aG sudo dev
+    
+    # Copy vagrant SSH keys to dev user
+    mkdir -p /home/dev/.ssh
+    cp /home/vagrant/.ssh/authorized_keys /home/dev/.ssh/authorized_keys
+    chown -R dev:dev /home/dev/.ssh
+    chmod 700 /home/dev/.ssh
+    chmod 600 /home/dev/.ssh/authorized_keys
+    
+    # Install Docker and dependencies
+    apt-get update
+    apt-get install -y ca-certificates curl gnupg lsb-release apt-transport-https
+    
+    # Add Docker's official GPG key
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    
+    # Add Docker repository
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    
+    # Install Docker Engine
+    apt-get update
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    
+    # Add users to docker group
+    usermod -aG docker vagrant
+    usermod -aG docker ubuntu  
+    usermod -aG docker dev
+    
+    # Install additional tools
+    apt-get install -y curl wget netcat-openbsd iputils-ping htop vim git jq dnsutils nmap
+    
+    # Install docker-compose standalone
+    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+    
+    # Configure hybrid network interface
+    cat > /etc/netplan/60-hybrid-network.yaml << 'EOF'
+network:
+  version: 2
+  ethernets:
+    enp0s8:
+      addresses:
+        - HYBRID_IP_PLACEHOLDER/24
+      routes:
+        - to: 10.0.1.0/24
+          via: 10.0.1.1
+      nameservers:
+        addresses:
+          - 10.0.1.2      # Hybrid DNS server
+          - 8.8.8.8       # Fallback
+        search:
+          - hybrid.local
+EOF
+    
+    # Apply network configuration
+    netplan apply
+    
+    # Configure Docker to connect containers to hybrid network by default
+    cat > /usr/local/bin/hybrid-container << 'EOF'
+#!/bin/bash
+# Helper script to run containers on hybrid network
+if [ $# -eq 0 ]; then
+    echo "Usage: hybrid-container <container-name> [docker-run-options] <image>"
+    echo "Example: hybrid-container web-server -p 80:80 nginx:alpine"
+    exit 1
+fi
+
+CONTAINER_NAME="$1"
+shift
+
+echo "Running container '$CONTAINER_NAME' on hybrid network..."
+docker run -d --name "$CONTAINER_NAME" --network hybrid-net "$@"
+
+# Get container IP
+sleep 2
+CONTAINER_IP=$(docker inspect "$CONTAINER_NAME" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+echo "Container '$CONTAINER_NAME' started successfully!"
+echo "Container IP: $CONTAINER_IP"
+echo "Test connectivity: ping $CONTAINER_IP"
+EOF
+    chmod +x /usr/local/bin/hybrid-container
+    
+    # Create hybrid network test script
+    cat > /usr/local/bin/hybrid-test << 'EOF'
+#!/bin/bash
+echo "=== Hybrid Docker VM Network Test ==="
+echo "VM IP on hybrid network: $(ip addr show enp0s8 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)"
+echo ""
+echo "Testing connectivity to hybrid gateway (10.0.1.1):"
+ping -c 3 10.0.1.1
+echo ""
+echo "Docker hybrid network status:"
+if docker network ls | grep -q hybrid-net; then
+    echo "✓ Docker hybrid-net network available"
+    docker network inspect hybrid-net --format "Network: {{range .IPAM.Config}}{{.Subnet}}{{end}}"
+    echo "Connected containers:"
+    docker network inspect hybrid-net --format "{{range .Containers}}  {{.Name}} ({{.IPv4Address}}){{end}}"
+else
+    echo "✗ Docker hybrid-net network not found"
+    echo "Create it with: docker network create --driver bridge --subnet=10.0.1.0/24 --gateway=10.0.1.1 --opt com.docker.network.bridge.name=hybr0 hybrid-net"
+fi
+echo ""
+echo "Scanning for other devices on hybrid network:"
+nmap -sn 10.0.1.0/24 | grep -E "(Nmap scan|Host is up)"
+EOF
+    chmod +x /usr/local/bin/hybrid-test
+    
+    # Enable and start Docker
+    systemctl enable docker
+    systemctl start docker
+    
+    # Create MOTD
+    cat > /etc/motd << 'EOF'
+==========================================
+    VM Lab - Hybrid Docker VM
+==========================================
+This VM is configured for hybrid networking with Docker:
+- Management network: 192.168.121.x (SSH access)
+- Hybrid network: 10.0.1.x (VM+Container communication)
+
+Docker Features:
+- Docker Engine with docker-compose installed
+- Users added to docker group: vagrant, ubuntu, dev
+- Ready for hybrid container deployment
+
+Hybrid networking features:
+- Containers can communicate with other VMs on 10.0.1.x
+- Shared bridge networking with host
+- Isolated from other VM networks
+
+Quick commands:
+- hybrid-test                    - Test hybrid network connectivity
+- hybrid-container <name> <img>  - Run container on hybrid network
+- docker network ls              - List Docker networks
+- docker ps                      - List running containers
+
+Network interfaces:
+- enp0s4 (eth0): Management network for SSH
+- enp0s8 (eth1): Hybrid network for VM+container communication
+
+To connect existing containers to hybrid network:
+  docker network connect hybrid-net <container-name>
+
+To run new containers on hybrid network:
+  docker run --network hybrid-net <image>
+==========================================
+EOF
+
+    echo "Hybrid Docker VM setup complete!"
+    echo "VM IP on hybrid network: $(ip addr show enp0s8 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1 2>/dev/null || echo 'HYBRID_IP_PLACEHOLDER')"
+    echo "Docker version: $(docker --version)"
+    echo "Run 'hybrid-test' to verify connectivity"
+  SHELL
+end

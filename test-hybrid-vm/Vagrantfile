@@ -1,0 +1,45 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# Test VM for hybrid networking (Docker + VM on same bridge)
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "alvistack/ubuntu-24.04"
+  config.vm.hostname = "test-hybrid-vm"
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  
+  # Configure libvirt provider with hybrid networking
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.driver = "kvm"
+    libvirt.memory = 1024
+    libvirt.cpus = 1
+    libvirt.graphics_type = "none"
+    
+    # Use our custom hybrid network instead of default vagrant-libvirt
+    libvirt.management_network_name = "hybrid-network"
+    libvirt.management_network_address = "10.0.1.0/24"
+  end
+
+  # Basic provisioning (using standard vagrant SSH keys)
+  config.vm.provision "shell", inline: <<-SHELL
+    # Create dev user for consistency with other VMs
+    useradd -m -s /bin/bash dev
+    echo "dev:dev123" | chpasswd
+    usermod -aG sudo dev
+    
+    # Copy vagrant SSH keys to dev user
+    mkdir -p /home/dev/.ssh
+    cp /home/vagrant/.ssh/authorized_keys /home/dev/.ssh/authorized_keys
+    chown -R dev:dev /home/dev/.ssh
+    chmod 700 /home/dev/.ssh
+    chmod 600 /home/dev/.ssh/authorized_keys
+    
+    # Install basic networking tools
+    apt-get update
+    apt-get install -y curl wget netcat-openbsd iputils-ping
+    
+    echo "Hybrid networking test VM setup complete!"
+    echo "VM should be on hybrid network (10.0.1.x)"
+    echo "Container is at: 10.0.1.100"
+    ip addr show
+  SHELL
+end

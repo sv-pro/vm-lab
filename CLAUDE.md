@@ -15,13 +15,16 @@ This is a modern VM management system using Vagrant-libvirt for provisioning Ubu
 
 ## Current Architecture
 
-**Vagrant-libvirt Based System:**
+**Vagrant-libvirt Based System with Advanced Hybrid Networking:**
 
 - Primary provider: libvirt (KVM virtualization)
 - Fallback provider: VirtualBox (when libvirt unavailable)
 - Multi-machine Vagrantfile with 8 predefined VM roles (3 production + 5 experimental)
 - Custom VM support with isolated directories and templates
 - Unified Makefile interface for all operations
+- **🚀 Hybrid Networking**: VMs and Docker containers communicate on shared network (10.0.1.0/24)
+- **🔍 DNS Service Discovery**: hostname.hybrid.local resolution between all components
+- **📊 Network Monitoring**: Real-time traffic monitoring and comprehensive diagnostics
 
 ## Project Structure
 
@@ -43,6 +46,21 @@ vm-lab/
 make create-base [NAME=<name>]     # Create base Ubuntu VM
 make create-docker [NAME=<name>]   # Create Docker host VM  
 make create-observer [NAME=<name>] # Create Observer host VM
+
+# 🚀 Hybrid Networking (VM + Docker Container Communication)
+make create-hybrid-network         # Create shared bridge network (10.0.1.0/24)
+make hybrid-base [NAME=<name>]     # Create base VM with hybrid networking
+make hybrid-docker [NAME=<name>]   # Create Docker VM with hybrid networking
+make hybrid-status                 # Show hybrid network status
+
+# 🔍 DNS Service Discovery
+make hybrid-enable-dns             # Enable hostname resolution (containers ↔ VMs)
+make hybrid-update-dns             # Update DNS records for all components
+
+# 📊 Network Monitoring & Debugging
+make hybrid-monitor                # Real-time traffic monitoring
+make hybrid-debug                  # Comprehensive network diagnostics  
+make hybrid-logs                   # DNS container logs
 
 # Experimental VM Creation (hidden from help - use with caution)
 make create-k8s [NAME=<name>]      # Create Kubernetes host VM (snap issues)
@@ -93,7 +111,9 @@ vagrant destroy docker         # Destroy predefined VM
 
 **Network Configuration:**
 - Primary provider: libvirt with `vagrant-libvirt` management network
-- Network range: `192.168.121.0/24` (default vagrant-libvirt)
+- Management network: `192.168.121.0/24` (SSH access)
+- **🚀 Hybrid network**: `10.0.1.0/24` (VM-Container communication)
+- **🔍 DNS service**: hostname.hybrid.local resolution between all components
 - SSH access: Direct IP assignment via libvirt DHCP
 
 ## Dependencies

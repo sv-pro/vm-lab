@@ -1,0 +1,128 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# Template for Hybrid Base VMs with Docker+VM networking capability
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "alvistack/ubuntu-24.04"
+  config.vm.hostname = "VM_NAME_PLACEHOLDER"
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  
+  # Configure libvirt provider with hybrid networking
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.driver = "kvm"
+    libvirt.memory = 1024
+    libvirt.cpus = 1
+    libvirt.graphics_type = "none"
+    
+    # Primary interface: management network (SSH access)
+    libvirt.management_network_name = "vagrant-libvirt"
+    libvirt.management_network_address = "192.168.121.0/24"
+  end
+
+  # Add hybrid network interface
+  config.vm.network :private_network, 
+    :libvirt__network_name => "hybrid-network",
+    :libvirt__dhcp_enabled => false,
+    :ip => "HYBRID_IP_PLACEHOLDER"
+
+  # SSH key configuration (using standard vagrant keys)
+  config.vm.provision "shell", inline: <<-SHELL
+    # Create dev user for consistency with other VMs
+    useradd -m -s /bin/bash dev
+    echo "dev:dev123" | chpasswd
+    usermod -aG sudo dev
+    
+    # Copy vagrant SSH keys to dev user
+    mkdir -p /home/dev/.ssh
+    cp /home/vagrant/.ssh/authorized_keys /home/dev/.ssh/authorized_keys
+    chown -R dev:dev /home/dev/.ssh
+    chmod 700 /home/dev/.ssh
+    chmod 600 /home/dev/.ssh/authorized_keys
+    
+    # Install basic tools and networking utilities
+    apt-get update
+    apt-get install -y curl wget netcat-openbsd iputils-ping htop vim git dnsutils nmap
+    
+    # Configure hybrid network interface
+    cat > /etc/netplan/60-hybrid-network.yaml << 'EOF'
+network:
+  version: 2
+  ethernets:
+    enp0s8:
+      addresses:
+        - HYBRID_IP_PLACEHOLDER/24
+      routes:
+        - to: 10.0.1.0/24
+          via: 10.0.1.1
+      nameservers:
+        addresses:
+          - 10.0.1.2      # Hybrid DNS server
+          - 8.8.8.8       # Fallback
+        search:
+          - hybrid.local
+EOF
+    
+    # Apply network configuration
+    netplan apply
+    
+    # Create helpful scripts for hybrid networking
+    cat > /usr/local/bin/hybrid-test << 'EOF'
+#!/bin/bash
+echo "=== Hybrid Network Test ==="
+echo "VM IP on hybrid network: $(ip addr show enp0s8 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)"
+echo ""
+echo "Testing connectivity to hybrid gateway (10.0.1.1):"
+ping -c 3 10.0.1.1
+echo ""
+echo "Testing DNS resolution (if DNS service is enabled):"
+if dig +short @10.0.1.2 gateway.hybrid.local >/dev/null 2>&1; then
+    echo "✓ DNS service is available at 10.0.1.2"
+    echo "Testing hostname resolution:"
+    echo "  gateway.hybrid.local: $(dig +short @10.0.1.2 gateway.hybrid.local)"
+    echo "  dns.hybrid.local: $(dig +short @10.0.1.2 dns.hybrid.local)"
+    echo ""
+    echo "Available hosts in hybrid.local domain:"
+    dig +short @10.0.1.2 axfr hybrid.local 2>/dev/null | head -5 || echo "  (domain transfer not available)"
+else
+    echo "✗ DNS service not available at 10.0.1.2"
+    echo "  Run 'make hybrid-enable-dns' on the host to enable service discovery"
+fi
+echo ""
+echo "Scanning for other devices on hybrid network:"
+nmap -sn 10.0.1.0/24 | grep -E "(Nmap scan|Host is up)"
+EOF
+    chmod +x /usr/local/bin/hybrid-test
+    
+    # Create MOTD
+    cat > /etc/motd << 'EOF'
+==========================================
+    VM Lab - Hybrid Base VM
+==========================================
+This VM is configured for hybrid networking:
+- Management network: 192.168.121.x (SSH access)
+- Hybrid network: 10.0.1.x (VM+Container communication)
+
+Hybrid networking features:
+- Communicate with Docker containers on 10.0.1.x
+- Shared bridge networking with host
+- Isolated from other VM networks
+
+Quick commands:
+- hybrid-test          - Test hybrid network connectivity
+- ip addr show enp0s8  - Show hybrid interface status
+- ping 10.0.1.1       - Test gateway connectivity
+
+Network interfaces:
+- enp0s4 (eth0): Management network for SSH
+- enp0s8 (eth1): Hybrid network for container communication
+
+For Docker containers, connect them to the 'hybrid-net' 
+Docker network to communicate with this VM.
+==========================================
+EOF
+
+    echo "Hybrid Base VM setup complete!"
+    echo "Hybrid network IP: $(ip addr show enp0s8 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1 2>/dev/null || echo 'HYBRID_IP_PLACEHOLDER')"
+    echo "Run 'hybrid-test' to verify connectivity"
+  SHELL
+end

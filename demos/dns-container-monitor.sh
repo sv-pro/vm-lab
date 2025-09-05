@@ -17,12 +17,16 @@ fi
 echo "📊 Real-time DNS queries:"
 echo "----------------------------------------"
 
-# Follow DNS container logs with colored output
-docker logs -f hybrid-dns 2>&1 | while read line; do
-    if echo "$line" | grep -q "query"; then
+# Follow DNS logs from the actual log file inside container
+docker exec hybrid-dns tail -f /var/log/dnsmasq.log 2>/dev/null | while read line; do
+    if echo "$line" | grep -q "query\[A\]"; then
         echo "🔍 QUERY:  $line"
-    elif echo "$line" | grep -q "reply"; then  
+    elif echo "$line" | grep -q "query\[AAAA\]"; then
+        echo "🔍 IPv6:   $line" 
+    elif echo "$line" | grep -q "/etc/hosts"; then  
         echo "✅ REPLY:  $line"
+    elif echo "$line" | grep -q "cached"; then
+        echo "⚡ CACHE:  $line"
     elif echo "$line" | grep -q "config"; then
         echo "⚙️ CONFIG: $line"
     else

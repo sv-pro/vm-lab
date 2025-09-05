@@ -37,7 +37,8 @@ help: ## Show this help message
 	@echo "  make hybrid-logs                   - DNS container logs"
 	@echo ""
 	@echo "eBPF Demos & Monitoring:"
-	@echo "  make demo-dns-monitor              - Interactive bpftrace DNS monitoring demo"
+	@echo "  make demo-dns-simple               - Simple DNS monitoring via container logs (no sudo)"
+	@echo "  make demo-dns-monitor              - Interactive bpftrace DNS monitoring demo (requires sudo)"
 	@echo ""
 	@echo "VM Management:"
 	@echo "  make list                          - List all VM images and running VMs"
@@ -195,10 +196,15 @@ hybrid-logs: ## Show DNS container logs
 	@./scripts/hybrid-network.sh logs
 
 # eBPF Demo targets
-.PHONY: demo-dns-monitor
-demo-dns-monitor: ## Interactive bpftrace DNS monitoring demo
+.PHONY: demo-dns-monitor demo-dns-simple
+demo-dns-monitor: ## Interactive bpftrace DNS monitoring demo (requires sudo)
 	@echo "Starting DNS monitoring demo..."
-	@./demos/run-dns-demo.sh
+	@echo "Note: This demo requires sudo for eBPF functionality"
+	@sudo ./demos/run-dns-demo.sh
+
+demo-dns-simple: ## Simple DNS monitoring via container logs (no sudo needed)
+	@echo "Starting simple DNS monitoring (no sudo required)..."
+	@./demos/dns-container-monitor.sh
 
 # VM Management targets  
 .PHONY: list start stop ssh delete status

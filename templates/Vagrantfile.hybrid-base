@@ -41,7 +41,7 @@ Vagrant.configure("2") do |config|
     
     # Install basic tools and networking utilities
     apt-get update
-    apt-get install -y curl wget netcat-openbsd iputils-ping htop vim git
+    apt-get install -y curl wget netcat-openbsd iputils-ping htop vim git dnsutils nmap
     
     # Configure hybrid network interface
     cat > /etc/netplan/60-hybrid-network.yaml << 'EOF'
@@ -54,6 +54,12 @@ network:
       routes:
         - to: 10.0.1.0/24
           via: 10.0.1.1
+      nameservers:
+        addresses:
+          - 10.0.1.2      # Hybrid DNS server
+          - 8.8.8.8       # Fallback
+        search:
+          - hybrid.local
 EOF
     
     # Apply network configuration
@@ -64,8 +70,23 @@ EOF
 #!/bin/bash
 echo "=== Hybrid Network Test ==="
 echo "VM IP on hybrid network: $(ip addr show enp0s8 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)"
+echo ""
 echo "Testing connectivity to hybrid gateway (10.0.1.1):"
 ping -c 3 10.0.1.1
+echo ""
+echo "Testing DNS resolution (if DNS service is enabled):"
+if dig +short @10.0.1.2 gateway.hybrid.local >/dev/null 2>&1; then
+    echo "✓ DNS service is available at 10.0.1.2"
+    echo "Testing hostname resolution:"
+    echo "  gateway.hybrid.local: $(dig +short @10.0.1.2 gateway.hybrid.local)"
+    echo "  dns.hybrid.local: $(dig +short @10.0.1.2 dns.hybrid.local)"
+    echo ""
+    echo "Available hosts in hybrid.local domain:"
+    dig +short @10.0.1.2 axfr hybrid.local 2>/dev/null | head -5 || echo "  (domain transfer not available)"
+else
+    echo "✗ DNS service not available at 10.0.1.2"
+    echo "  Run 'make hybrid-enable-dns' on the host to enable service discovery"
+fi
 echo ""
 echo "Scanning for other devices on hybrid network:"
 nmap -sn 10.0.1.0/24 | grep -E "(Nmap scan|Host is up)"

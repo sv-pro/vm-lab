@@ -27,6 +27,15 @@ help: ## Show this help message
 	@echo "  make hybrid-docker [NAME=<name>]   - Create Docker VM with hybrid networking"
 	@echo "  make hybrid-status                 - Show hybrid network status"
 	@echo ""
+	@echo "DNS Service Discovery:"
+	@echo "  make hybrid-enable-dns             - Enable hostname resolution (containers ↔ VMs)"
+	@echo "  make hybrid-update-dns             - Update DNS records for all components"
+	@echo ""
+	@echo "Network Monitoring & Debugging:"
+	@echo "  make hybrid-monitor                - Real-time traffic monitoring"
+	@echo "  make hybrid-debug                  - Comprehensive network diagnostics"
+	@echo "  make hybrid-logs                   - DNS container logs"
+	@echo ""
 	@echo "VM Management:"
 	@echo "  make list                          - List all VM images and running VMs"
 	@echo "  make start [NAME=<name>]           - Start a VM"
@@ -113,6 +122,8 @@ endif
 # Hybrid Networking targets
 .PHONY: create-hybrid-network hybrid-base hybrid-docker hybrid-status
 .PHONY: destroy-hybrid-network hybrid-test-connectivity
+.PHONY: hybrid-enable-dns hybrid-disable-dns hybrid-update-dns
+.PHONY: hybrid-monitor hybrid-debug hybrid-logs
 
 create-hybrid-network: ## Create hybrid bridge network for VM+Docker communication
 	@echo "Creating hybrid bridge network (10.0.1.0/24)..."
@@ -152,6 +163,33 @@ hybrid-status: ## Show hybrid network status
 
 hybrid-test-connectivity: ## Test connectivity between VMs and containers on hybrid network
 	@./scripts/hybrid-network.sh test-connectivity
+
+hybrid-enable-dns: ## Enable DNS service discovery (hostname resolution)
+	@echo "Enabling DNS service discovery for hybrid network..."
+	@./scripts/hybrid-network.sh enable-dns
+	@echo "DNS enabled! VMs and containers can now resolve each other by hostname."
+	@echo "Example: ping container-name.hybrid.local"
+
+hybrid-disable-dns: ## Disable DNS service discovery
+	@echo "Disabling DNS service discovery..."
+	@./scripts/hybrid-network.sh disable-dns
+	@echo "DNS disabled"
+
+hybrid-update-dns: ## Update DNS records for all VMs and containers
+	@echo "Updating DNS records..."
+	@./scripts/hybrid-network.sh update-dns
+
+hybrid-monitor: ## Monitor hybrid network traffic in real-time
+	@echo "Starting hybrid network monitoring..."
+	@./scripts/hybrid-network.sh monitor
+
+hybrid-debug: ## Run comprehensive network diagnostics
+	@echo "Running hybrid network diagnostics..."
+	@./scripts/hybrid-network.sh debug
+
+hybrid-logs: ## Show DNS container logs
+	@echo "Showing DNS container logs..."
+	@./scripts/hybrid-network.sh logs
 
 # VM Management targets  
 .PHONY: list start stop ssh delete status

@@ -1,0 +1,67 @@
+#!/usr/bin/env bpftrace
+
+/*
+ * DNS Request Monitor - Simple bpftrace one-liner demo
+ * 
+ * This script monitors DNS queries to port 53 in the hybrid network
+ * Perfect for observing DNS traffic to our hybrid-dns container (10.0.1.2:53)
+ * 
+ * Usage: sudo bpftrace demos/bpftrace-dns-monitor.bt
+ */
+
+BEGIN
+{
+    printf("🔍 DNS Monitor Started - Watching hybrid network DNS traffic\n");
+    printf("DNS Server: 10.0.1.2:53 (hybrid-dns container)\n");
+    printf("Press Ctrl+C to stop\n");
+    printf("%-8s %-6s %-15s %-15s %-6s %s\n", "TIME", "PID", "SOURCE", "DEST", "PORT", "PROCESS");
+    printf("%-8s %-6s %-15s %-15s %-6s %s\n", "----", "---", "------", "----", "----", "-------");
+}
+
+// Monitor outgoing DNS requests (connect syscall to port 53)
+kprobe:tcp_v4_connect,
+kprobe:udp_sendmsg
+{
+    $sk = (struct sock *)arg0;
+    $dport = $sk->__sk_common.skc_dport;
+    $daddr = $sk->__sk_common.skc_daddr;
+    
+    // Convert port from network byte order
+    $port = ($dport >> 8) | (($dport << 8) & 0xff00);
+    
+    if ($port == 53) {
+        printf("%-8s %-6d %-15s %-15s %-6d %s\n", 
+               strftime("%H:%M:%S", nsecs), 
+               pid, 
+               "local",
+               ntop($daddr),
+               $port,
+               comm);
+    }
+}
+
+// Monitor DNS responses (incoming packets to port 53)
+kprobe:udp_recvmsg
+{
+    $sk = (struct sock *)arg0;
+    $sport = $sk->__sk_common.skc_dport;
+    $saddr = $sk->__sk_common.skc_daddr;
+    
+    // Convert port from network byte order  
+    $port = ($sport >> 8) | (($sport << 8) & 0xff00);
+    
+    if ($port == 53) {
+        printf("%-8s %-6d %-15s %-15s %-6d %s\n",
+               strftime("%H:%M:%S", nsecs),
+               pid,
+               ntop($saddr), 
+               "local",
+               $port,
+               comm);
+    }
+}
+
+END
+{
+    printf("\n🔍 DNS Monitor Stopped\n");
+}

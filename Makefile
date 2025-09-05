@@ -36,6 +36,9 @@ help: ## Show this help message
 	@echo "  make hybrid-debug                  - Comprehensive network diagnostics"
 	@echo "  make hybrid-logs                   - DNS container logs"
 	@echo ""
+	@echo "eBPF Demos & Monitoring:"
+	@echo "  make demo-dns-monitor              - Interactive bpftrace DNS monitoring demo"
+	@echo ""
 	@echo "VM Management:"
 	@echo "  make list                          - List all VM images and running VMs"
 	@echo "  make start [NAME=<name>]           - Start a VM"
@@ -190,6 +193,12 @@ hybrid-debug: ## Run comprehensive network diagnostics
 hybrid-logs: ## Show DNS container logs
 	@echo "Showing DNS container logs..."
 	@./scripts/hybrid-network.sh logs
+
+# eBPF Demo targets
+.PHONY: demo-dns-monitor
+demo-dns-monitor: ## Interactive bpftrace DNS monitoring demo
+	@echo "Starting DNS monitoring demo..."
+	@./demos/run-dns-demo.sh
 
 # VM Management targets  
 .PHONY: list start stop ssh delete status

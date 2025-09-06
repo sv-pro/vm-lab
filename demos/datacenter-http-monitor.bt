@@ -1,0 +1,66 @@
+#!/usr/bin/env bpftrace
+
+// Monitor internal datacenter HTTP traffic (post-TLS termination)
+// Captures plaintext HTTP requests between services
+
+tracepoint:syscalls:sys_enter_sendto,
+tracepoint:syscalls:sys_enter_sendmsg
+{
+    if (arg2 > 10) {
+        $data = str(arg1, arg2 < 1000 ? arg2 : 1000);
+        
+        // Look for HTTP requests
+        if ($data =~ /^(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH) /) {
+            $lines = split($data, "\r\n");
+            $request_line = $lines[0];
+            
+            // Extract method and URL
+            $parts = split($request_line, " ");
+            $method = $parts[0];
+            $url = $parts[1];
+            
+            // Look for common internal headers
+            $host = "";
+            $user_agent = "";
+            $forwarded_for = "";
+            
+            // Parse headers
+            $i = 1;
+            while ($i < 20 && $lines[$i] != "") {
+                if ($lines[$i] =~ /^Host: (.+)/) {
+                    $host = $1;
+                }
+                if ($lines[$i] =~ /^User-Agent: (.+)/) {
+                    $user_agent = $1;
+                }
+                if ($lines[$i] =~ /^X-Forwarded-For: (.+)/) {
+                    $forwarded_for = $1;
+                }
+                $i++;
+            }
+            
+            // JSON output for downstream processing
+            printf("{\"timestamp\":%llu,\"source_comm\":\"%s\",\"pid\":%d,\"method\":\"%s\",\"url\":\"%s\",\"host\":\"%s\",\"client_ip\":\"%s\",\"user_agent\":\"%s\"}\n",
+                   nsecs, comm, pid, $method, $url, $host, $forwarded_for, $user_agent);
+        }
+        
+        // Monitor API responses for errors
+        if ($data =~ /^HTTP\/1\.[01] ([45][0-9][0-9])/) {
+            printf("{\"timestamp\":%llu,\"type\":\"error_response\",\"source_comm\":\"%s\",\"status\":\"%s\"}\n",
+                   nsecs, comm, $1);
+        }
+    }
+}
+
+// Monitor service-to-service connections
+tracepoint:syscalls:sys_enter_connect
+{
+    $sa = (struct sockaddr_in*)arg1;
+    $port = ($sa->sin_port >> 8) | (($sa->sin_port & 0xFF) << 8);  // Convert from network byte order
+    
+    // Common internal service ports
+    if ($port == 80 || $port == 8080 || $port == 8000 || $port == 3000 || $port == 9000) {
+        printf("{\"timestamp\":%llu,\"type\":\"service_connection\",\"source_comm\":\"%s\",\"pid\":%d,\"target_port\":%d}\n",
+               nsecs, comm, pid, $port);
+    }
+}

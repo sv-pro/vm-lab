@@ -1,0 +1,57 @@
+#!/usr/bin/env bpftrace
+
+// Monitor HTTPS microservice communication in datacenter
+// Focus on connection patterns, TLS handshakes, and metadata
+
+tracepoint:syscalls:sys_enter_connect
+{
+    $sa = (struct sockaddr_in*)arg1;
+    $port = ($sa->sin_port >> 8) | (($sa->sin_port & 0xFF) << 8);
+    
+    // HTTPS and common secure service ports
+    if ($port == 443 || $port == 8443 || $port == 9443 || $port == 6443) {
+        printf("{\"timestamp\":%llu,\"type\":\"https_connection\",\"source_comm\":\"%s\",\"pid\":%d,\"target_port\":%d}\n",
+               nsecs, comm, pid, $port);
+    }
+}
+
+// Monitor TLS handshake initiation
+tracepoint:syscalls:sys_enter_sendto,
+tracepoint:syscalls:sys_enter_sendmsg
+{
+    if (arg2 > 5) {
+        $data = str(arg1, arg2 < 100 ? arg2 : 100);
+        
+        // TLS ClientHello (0x16 0x03 0x01/0x03)
+        if ($data =~ /^\x16\x03[\x01\x03]/) {
+            printf("{\"timestamp\":%llu,\"type\":\"tls_handshake\",\"source_comm\":\"%s\",\"pid\":%d,\"direction\":\"outbound\"}\n",
+                   nsecs, comm, pid);
+        }
+    }
+}
+
+// Monitor TLS handshake responses
+tracepoint:syscalls:sys_enter_recvfrom,
+tracepoint:syscalls:sys_enter_recvmsg
+{
+    // We can't see the data here, but we can track the pattern
+    printf("{\"timestamp\":%llu,\"type\":\"tls_response\",\"source_comm\":\"%s\",\"pid\":%d}\n",
+           nsecs, comm, pid);
+}
+
+// Monitor service mesh sidecars (Envoy, Linkerd, etc.)
+tracepoint:syscalls:sys_enter_sendto,
+tracepoint:syscalls:sys_enter_sendmsg
+/ comm == "envoy" || comm == "linkerd-proxy" || comm == "istio-proxy" /
+{
+    printf("{\"timestamp\":%llu,\"type\":\"sidecar_traffic\",\"proxy\":\"%s\",\"pid\":%d,\"bytes\":%d}\n",
+           nsecs, comm, pid, arg2);
+}
+
+// Track certificate loading for mTLS
+tracepoint:syscalls:sys_enter_openat
+/ str(arg1) =~ /\.(crt|pem|key|p12|jks)$/ /
+{
+    printf("{\"timestamp\":%llu,\"type\":\"cert_access\",\"source_comm\":\"%s\",\"file\":\"%s\"}\n",
+           nsecs, comm, str(arg1));
+}

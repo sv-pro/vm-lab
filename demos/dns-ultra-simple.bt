@@ -1,10 +1,30 @@
 #!/usr/bin/env bpftrace
 
-// Simplest possible DNS monitor - track processes doing DNS lookups
-BEGIN { printf("🔍 DNS Process Monitor - Shows when programs do DNS lookups\n"); }
-
-// Monitor any process that opens files containing "resolv" (like /etc/resolv.conf)
-tracepoint:syscalls:sys_enter_openat /str(args->filename) =~ /resolv/ || str(args->filename) =~ /hosts/
+tracepoint:syscalls:sys_enter_sendto,
+tracepoint:syscalls:sys_enter_sendmsg
 {
-    printf("📖 %s (PID %d) accessed DNS config: %s\n", comm, pid, str(args->filename));
+    if (
+    comm == "Chrome_ChildIOT" ||
+    comm == "Chrome_IOThread" ||
+    comm == "Compositor" ||
+    comm == "VizCompositorTh" ||
+    comm == "code" ||
+    comm == "system76-schedu" ||
+    comm == "gnome-system-mo" ||
+    comm == "brave" ||
+    comm == "ServiceWorker t" ||
+    comm == "ThreadPoolForeg" ||
+    comm == "postgres" ||
+    comm == "libuv-worker" ||
+    comm == "gdbus" ||
+    comm == "systemd-journal"
+    ) {
+        return;
+    }
+    printf("Network send: %s\n", comm);
+
+    if (comm == "nslookup" || comm == "systemd-resolve") {
+        printf("DNS send detected, exiting trace...\n");
+        exit();
+    }
 }
